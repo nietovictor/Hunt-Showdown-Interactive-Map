@@ -1,0 +1,96 @@
+{
+  "spawn": {
+    "type": "spawn",
+    "label": "Spawns",
+    "categories": "spawns",
+    "borderColor": "White",
+    "fillColor": "Black",
+    "radius": 35
+  },
+  "armory": {
+    "type": "armory",
+    "label": "Armories",
+    "categories": "armories",
+    "borderColor": "DarkSlateGray",
+    "fillColor": "LightSlateGray",
+    "radius": 20
+  },
+  "tower": {
+    "type": "tower",
+    "label": "Hunting Towers",
+    "categories": "towers",
+    "borderColor": "SaddleBrown",
+    "fillColor": "Peru",
+    "radius": 20
+  },
+  "big_tower": {
+    "type": "big_tower",
+    "label": "Watch Towers",
+    "categories": "big_towers",
+    "borderColor": "#5b2e0d",
+    "fillColor": "#875829",
+    "radius": 20
+  },
+  "workbench": {
+    "type": "workbench",
+    "label": "Workbenches",
+    "categories": "workbenches",
+    "borderColor": "DeepSkyBlue",
+    "fillColor": "SteelBlue",
+    "radius": 8
+  },
+  "wild_target": {
+    "type": "wild_target",
+    "label": "Wild Targets",
+    "categories": "wild_targets",
+    "borderColor": "DarkRed",
+    "fillColor": "FireBrick",
+    "radius": 18
+  },
+  "brute": {
+    "type": "brute",
+    "label": "Brutes",
+    "categories": "brutes",
+    "borderColor": "White",
+    "fillColor": "#4b2e1f",
+    "radius": 18
+  },
+  "beetle": {
+    "type": "beetle",
+    "label": "Beetles",
+    "categories": "beetles",
+    "borderColor": "Violet",
+    "fillColor": "BlueViolet",
+    "radius": 8
+  },
+  "easter_egg": {
+    "type": "easter_egg",
+    "label": "Easter Eggs",
+    "categories": "easter_eggs",
+    "borderColor": "LimeGreen",
+    "fillColor": "SeaGreen",
+    "radius": 8
+  },
+  "melee_weapon": {
+    "type": "melee_weapon",
+    "label": "Melee Weapons",
+    "categories": "melee_weapons",
+    "borderColor": "Salmon",
+    "fillColor": "Crimson",
+    "radius": 8
+  },
+  "cash_register": {
+    "type": "cash_register",
+    "label": "Cash Registers",
+    "categories": "cash_registers",
+    "borderColor": "Gold",
+    "fillColor": "GoldenRod",
+    "radius": 8,
+    "levels": {
+      "0": "White",
+      "1": "PaleGreen",
+      "2": "SkyBlue",
+      "3": "MediumPurple"
+    }
+  }
+}

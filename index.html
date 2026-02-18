@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapa Interactivo - Hunt Showdown (MVP)</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <button id="toggleMenuBtn" class="menu-toggle" aria-label="Abrir menú">☰</button>
+
+    <aside id="sideMenu" class="side-menu" aria-hidden="true">
+      <h1>Hunt Map</h1>
+      <p>Versión MVP editable por datos</p>
+      <a href="#">Inicio</a>
+      <a href="#">Mapas</a>
+      <a href="#">Guía</a>
+    </aside>
+
+    <main>
+      <section id="topBar" class="top-bar"></section>
+
+      <section class="controls-right">
+        <button id="toggleLegendBtn" class="btn">Leyenda</button>
+      </section>
+
+      <section id="legend" class="legend hidden">
+        <div class="legend-actions">
+          <button id="legendAll" class="btn btn-small">Todo</button>
+          <button id="legendNone" class="btn btn-small">Nada</button>
+        </div>
+        <div id="legendItems"></div>
+        <hr />
+        <label class="legend-item names-toggle">
+          <input type="checkbox" id="toggleCompoundNames" checked />
+          <span class="dot names"></span>
+          Nombres de compuestos
+        </label>
+      </section>
+
+      <div id="map"></div>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
