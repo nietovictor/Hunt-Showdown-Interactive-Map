@@ -67,7 +67,12 @@ function applyStaticTranslations() {
 
 function getSavedLanguage() {
   const value = localStorage.getItem(STORAGE_KEYS.language);
-  return value === 'en' ? 'en' : 'es';
+  if (value === 'es' || value === 'en') {
+    return value;
+  }
+
+  const browserLanguage = (navigator.language || navigator.userLanguage || '').toLowerCase();
+  return browserLanguage.startsWith('es') ? 'es' : 'en';
 }
 
 function setSavedLanguage(language) {
