@@ -19,7 +19,7 @@ const UI_TEXT = {
     legend: 'Leyenda',
     all: 'Todo',
     none: 'Nada',
-    compoundNames: 'Nombres de compuestos',
+    compoundNames: 'Nombres de zonas',
     type: 'Tipo'
   },
   en: {
