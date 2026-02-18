@@ -5,14 +5,14 @@ const DEFAULT_MAP_IDS = {
   1: 'stillwater',
   2: 'lawson',
   3: 'desalle',
-  4: 'mammon'
+  4: 'mammoths'
 };
 
 const DEFAULT_MAP_IMAGES = {
-  1: 'assets/pantano_de_stillwater.webp',
-  2: 'assets/delta_del_lawson.webp',
-  3: 'assets/desalle.webp',
-  4: 'assets/4.webp'
+  1: 'assets/maps/stillwaterBayou.webp',
+  2: 'assets/maps/lawsonDelta.webp',
+  3: 'assets/maps/desalle.webp',
+  4: 'assets/maps/mammothsGulch.webp'
 };
 
 const AUTO_STYLE_PALETTE = [
@@ -247,16 +247,16 @@ function normalizeMaps(rawMaps, poiTypes) {
 
 async function loadMapAndPoiData() {
   const [mapsResponse, poiResponse] = await Promise.all([
-    fetch('new_data.json'),
-    fetch('poiData.json')
+    fetch('data/poiData.json'),
+    fetch('data/poiIcons.json')
   ]);
 
   if (!mapsResponse.ok) {
-    throw new Error('No se pudo cargar new_data.json');
+    throw new Error('No se pudo cargar data/poiData.json');
   }
 
   if (!poiResponse.ok) {
-    throw new Error('No se pudo cargar poiData.json');
+    throw new Error('No se pudo cargar data/poiIcons.json');
   }
 
   const rawMaps = await mapsResponse.json();

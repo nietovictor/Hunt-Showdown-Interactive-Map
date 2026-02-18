@@ -1,46 +1,58 @@
-# Hunt Map MVP (estático)
+# Hunt: Showdown 1896 - Interactive Map
 
-Web estilo "mapa interactivo" inspirada en Hunt Showdown, hecha con HTML/CSS/JS + Leaflet.
+## Features
+- Map with background image (`CRS.Simple`)
+- Map selector buttons
+- Legend with POI type filters
+- Select all / none actions
+- Toggleable compound names
+- Filter persistence with `localStorage`
+- Marker popups
 
-## Qué incluye
+## Project Structure
 
-- Mapa con imagen de fondo (`CRS.Simple`)
-- Botones de mapa
-- Leyenda con filtros por tipo de POI
-- Select all / none
-- Nombres de compuestos activables
-- Persistencia de filtros en `localStorage`
-- Popups por marcador
+- `index.html`: main application layout
+- `pages/about.html`: secondary page (base)
+- `pages/guide.html`: secondary page (base)
+- `css/styles.css`: styles
+- `js/data.js`: data normalization and loading
+- `js/app.js`: map and UI logic
+- `js/translations.js`: ES/EN translations
+- `data/poiData.json`: map and point data
+- `data/poiIcons.json`: POI type configuration
+- `assets/maps/`: base map images
+- `assets/images/`: future project images
 
-## Estructura
+## Run Locally
 
-- `index.html`: layout de la aplicación
-- `styles.css`: estilos
-- `data.js`: tipos de POI y datos de mapas
-- `app.js`: lógica del mapa y controles
-- `assets/desalle.webp`: imagen base
-
-## Ejecutar en local
-
-1. En la carpeta del proyecto, ejecuta:
+1. In the project folder, run:
    - `python -m http.server 8080`
-2. Abre:
+2. Open:
    - `http://localhost:8080`
+3. Available views:
+   - `http://localhost:8080/index.html`
+   - `http://localhost:8080/pages/about.html`
+   - `http://localhost:8080/pages/guide.html`
 
+## Multi-HTML Mode
 
-## Personalización
+- To add new views, create additional files inside `pages/`.
+- Keep shared resources in `css/`, `js/`, `data/`, and `assets/`.
+- From files inside `pages/`, use `../` relative paths to access root-level folders.
 
-- Para añadir/quitar categorías: edita `POI_TYPES` en `data.js`.
-- Para cambiar mapas y marcadores: edita `MAPS` en `data.js`.
-- Para cambiar aspecto: edita `styles.css`.
+## Customization
 
-## Idiomas (ES / EN)
+- To add/remove categories: edit `POI_TYPES` in `js/data.js`.
+- To update maps and markers: review data loading in `js/data.js` and the JSON files in `data/`.
+- To change styling: edit `css/styles.css`.
 
-- El selector de idioma está en la esquina superior derecha.
-- Las traducciones se definen en el objeto `I18N` dentro de `data.js`.
-- Secciones del objeto `I18N`:
-   - `mapNames`: nombres de mapas por `mapId`.
-   - `poiTypes`: nombres de tipos de marcador (leyenda) por `type`.
-   - `compounds`: nombres de compuestos por `mapId` y `compoundKey`.
+## Languages (ES / EN)
 
-Si falta una traducción, la app usa el texto original como fallback.
+- The language selector is in the top-right corner.
+- Translations are defined in `js/translations.js`.
+- `I18N` sections:
+  - `mapNames`: map names by `mapId`.
+  - `poiTypes`: marker/legend type names by `type`.
+  - `compounds`: compound names by `mapId` and `compoundKey`.
+
+If a translation is missing, the app falls back to the original text.

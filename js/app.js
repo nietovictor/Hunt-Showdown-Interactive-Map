@@ -408,7 +408,7 @@ function showLoadError(error) {
 
   const mapElement = document.getElementById('map');
   if (mapElement) {
-    mapElement.innerHTML = '<div style="padding:12px;color:#fff;">No se pudieron cargar los ficheros new_data.json / poiData.json.</div>';
+    mapElement.innerHTML = '<div style="padding:12px;color:#fff;">No se pudieron cargar los ficheros data/poiData.json / data/poiIcons.json.</div>';
   }
 
   console.error(error);

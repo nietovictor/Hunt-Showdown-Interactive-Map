@@ -77,7 +77,7 @@ const TRANSLATIONS = {
       reeves_quarry: { es: '', en: 'Reeves Quarry' },
       lower_desalle: { es: '', en: 'Lower DeSalle' }
     },
-    mammon: {
+    mammoths: {
       blackthorn_stockyard: { es: 'Granja Blackthorn', en: 'Blackthorn Stockyard' },
       the_gasworks: { es: 'Fábrica de gas', en: 'The Gasworks' },
       terminus_railyard: { es: 'Estación ferroviaria de Terminus', en: 'Terminus Railyard' },
