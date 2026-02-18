@@ -78,22 +78,22 @@ const TRANSLATIONS = {
       lower_desalle: { es: '', en: 'Lower DeSalle' }
     },
     mammon: {
-      blackthorn_stockyard: { es: '', en: 'Blackthorn Stockyard' },
-      the_gasworks: { es: '', en: 'The Gasworks' },
-      terminus_railyard: { es: '', en: 'Terminus Railyard' },
-      east_mountain_corn: { es: '', en: 'East Mountain Corn' },
-      monteros_malt: { es: '', en: 'Monteros Malt' },
-      grizzly_lodge: { es: '', en: 'Grizzly Lodge' },
-      o_donovan_stone: { es: '', en: 'O\'Donovan Stone' },
-      split_river_mill: { es: '', en: 'Split River Mill' },
-      machine_gorge: { es: '', en: 'Machine Gorge' },
-      oro_gordo_mine: { es: '', en: 'Oro Gordo Mine' },
-      la_plata_mine: { es: '', en: 'La Plata Mine' },
-      deadfall_timber: { es: '', en: 'Deadfall Timber' },
-      preston_oil: { es: '', en: 'Preston Oil' },
-      kingfisher_foundry: { es: '', en: 'Kingfisher Foundry' },
-      graystone_pit: { es: '', en: 'Graystone Pit' },
-      miner_s_folly: { es: '', en: 'Miner\'s Folly' }
+      blackthorn_stockyard: { es: 'Granja Blackthorn', en: 'Blackthorn Stockyard' },
+      the_gasworks: { es: 'Fábrica de gas', en: 'The Gasworks' },
+      terminus_railyard: { es: 'Estación ferroviaria de Terminus', en: 'Terminus Railyard' },
+      east_mountain_corn: { es: 'Maizal de East Mountain', en: 'East Mountain Corn' },
+      monteros_malt: { es: 'Cervecería Monteros', en: 'Monteros Malt' },
+      grizzly_lodge: { es: 'Refugio Grizzly', en: 'Grizzly Lodge' },
+      o_donovan_stone: { es: 'Piedra O\'Donovan', en: 'O\'Donovan Stone' },
+      split_river_mill: { es: 'Molino de Split River', en: 'Split River Mill' },
+      machine_gorge: { es: 'Desfiladero Machine', en: 'Machine Gorge' },
+      oro_gordo_mine: { es: 'Mina de Oro Gordo', en: 'Oro Gordo Mine' },
+      la_plata_mine: { es: 'Mina de La Plata', en: 'La Plata Mine' },
+      deadfall_timber: { es: 'Explotación maderera Deadfall', en: 'Deadfall Timber' },
+      preston_oil: { es: 'Campo petrolífero Preston', en: 'Preston Oil' },
+      kingfisher_foundry: { es: 'Fundición Kingfisher', en: 'Kingfisher Foundry' },
+      graystone_pit: { es: 'Cantera Graystone', en: 'Graystone Pit' },
+      miner_s_folly: { es: 'Miner\'s Folly', en: 'Miner\'s Folly' }
     }
   }
 };
