@@ -38,7 +38,7 @@ function normalizeCoordinates(value, mapHeight) {
   // Datos: [y, x] donde y=0 es abajo, y=4098 es arriba
   // Leaflet: [lat, lng] donde lat=0 es arriba, lat=maxHeight es abajo
   // Inversión necesaria: latLeaflet = mapHeight - yDatos
-  return [mapHeight - y, x];
+  return [y, x];
 }
 
 function toLabelFromCategory(category) {
