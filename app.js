@@ -1,6 +1,7 @@
 let map;
 let activeMapId = null;
 let overlay;
+let currentLanguage = 'es';
 const markerLayersByType = {};
 let compoundNamesLayer;
 const imageSizeCache = new Map();
@@ -8,8 +9,99 @@ const imageSizeCache = new Map();
 const STORAGE_KEYS = {
   activeMap: 'hunt_mvp_active_map',
   typePrefix: 'hunt_mvp_type_',
-  compoundNames: 'hunt_mvp_compound_names'
+  compoundNames: 'hunt_mvp_compound_names',
+  language: 'hunt_mvp_language'
 };
+
+const UI_TEXT = {
+  es: {
+    language: 'Idioma',
+    legend: 'Leyenda',
+    all: 'Todo',
+    none: 'Nada',
+    compoundNames: 'Nombres de compuestos',
+    type: 'Tipo'
+  },
+  en: {
+    language: 'Language',
+    legend: 'Legend',
+    all: 'All',
+    none: 'None',
+    compoundNames: 'Compound names',
+    type: 'Type'
+  }
+};
+
+function getUIText(key) {
+  return UI_TEXT[currentLanguage]?.[key] || UI_TEXT.es[key] || key;
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = currentLanguage;
+
+  const languageLabel = document.getElementById('languageLabel');
+  if (languageLabel) {
+    languageLabel.textContent = getUIText('language');
+  }
+
+  const toggleLegendBtn = document.getElementById('toggleLegendBtn');
+  if (toggleLegendBtn) {
+    toggleLegendBtn.textContent = getUIText('legend');
+  }
+
+  const legendAll = document.getElementById('legendAll');
+  if (legendAll) {
+    legendAll.textContent = getUIText('all');
+  }
+
+  const legendNone = document.getElementById('legendNone');
+  if (legendNone) {
+    legendNone.textContent = getUIText('none');
+  }
+
+  const compoundNamesLabel = document.getElementById('compoundNamesLabel');
+  if (compoundNamesLabel) {
+    compoundNamesLabel.textContent = getUIText('compoundNames');
+  }
+}
+
+function getSavedLanguage() {
+  const value = localStorage.getItem(STORAGE_KEYS.language);
+  return value === 'en' ? 'en' : 'es';
+}
+
+function setSavedLanguage(language) {
+  currentLanguage = language === 'en' ? 'en' : 'es';
+  localStorage.setItem(STORAGE_KEYS.language, currentLanguage);
+}
+
+function getMapName(entry) {
+  if (typeof getMapDisplayName === 'function') {
+    return getMapDisplayName(entry.id, entry.name, currentLanguage);
+  }
+  return entry.name;
+}
+
+function getPoiTypeLabel(type, fallbackLabel) {
+  if (typeof getPoiTypeDisplayName === 'function') {
+    return getPoiTypeDisplayName(type, fallbackLabel, currentLanguage);
+  }
+  return fallbackLabel;
+}
+
+function getCompoundName(mapId, compound) {
+  if (typeof getCompoundDisplayName === 'function') {
+    return getCompoundDisplayName(mapId, compound.key, compound.name, currentLanguage);
+  }
+  return compound.name;
+}
+
+function refreshLanguageUI() {
+  applyStaticTranslations();
+  createMapButtons();
+  buildLegend();
+  renderMapData();
+}
 
 function getMapConfig(mapId) {
   return MAPS.find((entry) => entry.id === mapId) || MAPS[0] || null;
@@ -50,6 +142,7 @@ function createMapButtons() {
 
   MAPS.forEach((entry) => {
     const button = createButton(entry.name);
+    button.textContent = getMapName(entry);
     button.classList.toggle('active', entry.id === activeMapId);
     button.addEventListener('click', () => {
       activeMapId = entry.id;
@@ -80,7 +173,7 @@ function buildLegend() {
     dot.style.borderColor = settings.borderColor;
 
     const text = document.createElement('span');
-    text.textContent = settings.label;
+    text.textContent = getPoiTypeLabel(type, settings.label);
 
     input.addEventListener('change', () => {
       setSavedTypeState(type, input.checked);
@@ -95,7 +188,7 @@ function buildLegend() {
 
   const toggleCompoundNames = document.getElementById('toggleCompoundNames');
   toggleCompoundNames.checked = getSavedCompoundNameState();
-  toggleCompoundNames.addEventListener('change', () => {
+  toggleCompoundNames.onchange = () => {
     localStorage.setItem(STORAGE_KEYS.compoundNames, String(toggleCompoundNames.checked));
     if (!compoundNamesLayer) {
       return;
@@ -105,7 +198,7 @@ function buildLegend() {
     } else {
       map.removeLayer(compoundNamesLayer);
     }
-  });
+  };
 }
 
 function updateTypeVisibility(type, visible) {
@@ -202,6 +295,8 @@ function renderPOIs(mapConfig) {
       ? style.levels[String(poi.level)]
       : style.color;
 
+    const translatedTypeLabel = getPoiTypeLabel(poi.type, style.label);
+
     const marker = L.circleMarker(poi.coordinates, {
       radius: style.radius,
       color: style.borderColor,
@@ -210,7 +305,7 @@ function renderPOIs(mapConfig) {
       weight: 2
     });
 
-    marker.bindPopup(`<strong>${poi.name}</strong><br/>Tipo: ${style.label}`);
+    marker.bindPopup(`<strong>${poi.name}</strong><br/>${getUIText('type')}: ${translatedTypeLabel}`);
     markerLayersByType[poi.type].addLayer(marker);
   });
 
@@ -225,10 +320,12 @@ function renderCompoundLabels(mapConfig) {
   compoundNamesLayer = L.layerGroup();
 
   mapConfig.compounds.forEach((compound) => {
+    const translatedName = getCompoundName(mapConfig.id, compound);
+
     const marker = L.marker(compound.coordinates, {
       icon: L.divIcon({
         className: 'compound-label',
-        html: compound.name,
+        html: translatedName,
         iconSize: [0, 0]
       }),
       interactive: false
@@ -261,6 +358,7 @@ function bindUI() {
   const legend = document.getElementById('legend');
   const legendAll = document.getElementById('legendAll');
   const legendNone = document.getElementById('legendNone');
+  const languageSelect = document.getElementById('languageSelect');
 
   toggleMenuBtn.addEventListener('click', () => {
     sideMenu.classList.toggle('open');
@@ -289,6 +387,14 @@ function bindUI() {
       updateTypeVisibility(type, false);
     });
   });
+
+  if (languageSelect) {
+    languageSelect.value = currentLanguage;
+    languageSelect.addEventListener('change', () => {
+      setSavedLanguage(languageSelect.value);
+      refreshLanguageUI();
+    });
+  }
 }
 
 function showLoadError(error) {
@@ -311,6 +417,8 @@ function showLoadError(error) {
 function init() {
   loadMapAndPoiData()
     .then(() => {
+      currentLanguage = getSavedLanguage();
+
       if (!MAPS.length) {
         createMapButtons();
         return;
@@ -333,6 +441,7 @@ function init() {
       createMapButtons();
       buildLegend();
       bindUI();
+      applyStaticTranslations();
       renderMapData();
     })
     .catch((error) => {

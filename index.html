@@ -24,6 +24,11 @@
       <section id="topBar" class="top-bar"></section>
 
       <section class="controls-right">
+        <label id="languageLabel" for="languageSelect" class="language-label">Idioma</label>
+        <select id="languageSelect" class="lang-select" aria-label="Seleccionar idioma">
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+        </select>
         <button id="toggleLegendBtn" class="btn">Leyenda</button>
       </section>
 
@@ -37,7 +42,7 @@
         <label class="legend-item names-toggle">
           <input type="checkbox" id="toggleCompoundNames" checked />
           <span class="dot names"></span>
-          Nombres de compuestos
+          <span id="compoundNamesLabel">Nombres de compuestos</span>
         </label>
       </section>
 
