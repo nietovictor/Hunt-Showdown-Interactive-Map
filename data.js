@@ -25,17 +25,20 @@ const AUTO_STYLE_PALETTE = [
   { color: '#d35400', borderColor: '#9c3d00' }
 ];
 
-function normalizeCoordinates(value) {
+function normalizeCoordinates(value, mapHeight) {
   if (!Array.isArray(value) || value.length < 2) {
     return null;
   }
 
-  const [x, y] = value;
+  const [y, x] = value;  // Primera coord = Y (vertical), segunda = X (horizontal)
   if (typeof x !== 'number' || typeof y !== 'number') {
     return null;
   }
 
-  return [y, x];
+  // Datos: [y, x] donde y=0 es abajo, y=4098 es arriba
+  // Leaflet: [lat, lng] donde lat=0 es arriba, lat=maxHeight es abajo
+  // Inversión necesaria: latLeaflet = mapHeight - yDatos
+  return [mapHeight - y, x];
 }
 
 function toLabelFromCategory(category) {
@@ -140,7 +143,7 @@ function estimateMapSize(rawMap) {
         return;
       }
 
-      const [x, y] = point.c;
+      const [y, x] = point.c;  // Primera coord = Y, segunda = X
       if (typeof x === 'number' && typeof y === 'number') {
         maxX = Math.max(maxX, x);
         maxY = Math.max(maxY, y);
@@ -148,7 +151,9 @@ function estimateMapSize(rawMap) {
     });
   });
 
-  return [Math.max(1024, maxY + 120), Math.max(1024, maxX + 120)];
+  // Primera coordenada es Y (altura), segunda es X (ancho)
+  // Retornar [height, width] para Leaflet bounds
+  return [Math.max(1024, maxY + 10), Math.max(1024, maxX + 10)];
 }
 
 function normalizeMapImage(rawMap) {
@@ -163,14 +168,14 @@ function normalizeMapImage(rawMap) {
   return '';
 }
 
-function normalizeCompounds(rawMap) {
+function normalizeCompounds(rawMap, mapHeight) {
   if (!Array.isArray(rawMap?.compounds)) {
     return [];
   }
 
   return rawMap.compounds
     .map((compound) => {
-      const coordinates = normalizeCoordinates(compound?.c);
+      const coordinates = normalizeCoordinates(compound?.c, mapHeight);
       if (!coordinates) {
         return null;
       }
@@ -183,7 +188,7 @@ function normalizeCompounds(rawMap) {
     .filter(Boolean);
 }
 
-function normalizePois(rawMap, poiTypes) {
+function normalizePois(rawMap, poiTypes, mapHeight) {
   const pois = [];
 
   Object.entries(poiTypes).forEach(([type, style]) => {
@@ -193,7 +198,7 @@ function normalizePois(rawMap, poiTypes) {
     }
 
     rawCategoryPoints.forEach((point, index) => {
-      const coordinates = normalizeCoordinates(point?.c);
+      const coordinates = normalizeCoordinates(point?.c, mapHeight);
       if (!coordinates) {
         return;
       }
@@ -222,14 +227,16 @@ function normalizeMaps(rawMaps, poiTypes) {
   return (rawMaps || []).map((rawMap, index) => {
     const mapIndex = rawMap?.i || index + 1;
     const mapId = DEFAULT_MAP_IDS[mapIndex] || `map-${mapIndex}`;
+    const mapSize = estimateMapSize(rawMap);
+    const mapHeight = mapSize[0]; // [height, width]
 
     return {
       id: mapId,
       name: rawMap?.n || `Mapa ${mapIndex}`,
       image: normalizeMapImage(rawMap),
-      size: estimateMapSize(rawMap),
-      compounds: normalizeCompounds(rawMap),
-      pois: normalizePois(rawMap, poiTypes)
+      size: mapSize,
+      compounds: normalizeCompounds(rawMap, mapHeight),
+      pois: normalizePois(rawMap, poiTypes, mapHeight)
     };
   });
 }

@@ -162,8 +162,12 @@ function getImageSize(imagePath) {
 }
 
 async function renderOverlay(mapConfig) {
-  const configuredSize = Array.isArray(mapConfig.size) ? mapConfig.size : null;
-  const mapSize = configuredSize || (await getImageSize(mapConfig.image));
+  // Usar siempre el tamaño configurado basado en coordenadas
+  const mapSize = Array.isArray(mapConfig.size) ? mapConfig.size : (await getImageSize(mapConfig.image));
+  
+  // Leaflet: [0,0]=arriba-izq, [height,width]=abajo-der
+  // Datos: [0,0]=abajo-izq, [maxY,maxX]=arriba-der
+  // Invertir bounds para que la imagen coincida
   const bounds = [
     [0, 0],
     [mapSize[0], mapSize[1]]

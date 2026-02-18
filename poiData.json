@@ -5,7 +5,7 @@
     "categories": "spawns",
     "borderColor": "White",
     "fillColor": "Black",
-    "radius": 35
+    "radius": 5
   },
   "armory": {
     "type": "armory",
