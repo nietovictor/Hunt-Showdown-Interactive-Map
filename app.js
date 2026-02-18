@@ -162,8 +162,17 @@ function getImageSize(imagePath) {
 }
 
 async function renderOverlay(mapConfig) {
-  // Usar siempre el tamaño configurado basado en coordenadas
-  const mapSize = Array.isArray(mapConfig.size) ? mapConfig.size : (await getImageSize(mapConfig.image));
+  // Priorizar el tamaño real de la imagen para evitar offsets en los marcadores.
+  // Si falla la carga, usar el tamaño configurado o un fallback seguro.
+  const configuredSize = Array.isArray(mapConfig.size) ? mapConfig.size : null;
+  const imageSize = await getImageSize(mapConfig.image);
+  const hasValidImageSize = Array.isArray(imageSize)
+    && imageSize.length === 2
+    && Number.isFinite(imageSize[0])
+    && Number.isFinite(imageSize[1])
+    && imageSize[0] > 0
+    && imageSize[1] > 0;
+  const mapSize = hasValidImageSize ? imageSize : (configuredSize || [911, 911]);
   
   // Leaflet: [0,0]=arriba-izq, [height,width]=abajo-der
   // Datos: [0,0]=abajo-izq, [maxY,maxX]=arriba-der
