@@ -6,7 +6,7 @@ const TRANSLATIONS = {
     stillwater: { es: 'Pantano de Stillwater', en: 'Stillwater Bayou' },
     lawson: { es: 'Delta del Lawson', en: 'Lawson Delta' },
     desalle: { es: 'Desalle', en: 'Desalle' },
-    mammon: { es: 'Barranco de Amon', en: 'Mammoth\'s Gulch' }
+    mammoths: { es: 'Barranco de Amon', en: 'Mammoth\'s Gulch' }
   },
   poiTypes: {
     spawn: { es: 'Spawns', en: 'Spawns' },
