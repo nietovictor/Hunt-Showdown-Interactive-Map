@@ -5,7 +5,7 @@ const TRANSLATIONS = {
   mapNames: {
     stillwater: { es: 'Pantano de Stillwater', en: 'Stillwater Bayou' },
     lawson: { es: 'Delta del Lawson', en: 'Lawson Delta' },
-    desalle: { es: 'Desalle', en: 'Desalle' },
+    desalle: { es: 'DeSalle', en: 'DeSalle' },
     mammoths: { es: 'Barranco de Amon', en: 'Mammoth\'s Gulch' }
   },
   poiTypes: {
@@ -42,22 +42,22 @@ const TRANSLATIONS = {
       catfish_grove: { es: 'Arboleda de Catfish', en: 'Catfish Grove' }
     },
     lawson: {
-      godard_docks: { es: '', en: 'Godard Docks' },
-      blanc_brinery: { es: '', en: 'Blanc Brinery' },
-      golden_acres: { es: '', en: 'Golden Acres' },
-      salter_s_pork: { es: '', en: 'Salter\'s Pork' },
-      lawson_station: { es: '', en: 'Lawson Station' },
-      maw_battery: { es: '', en: 'Maw Battery' },
-      arden_parish: { es: '', en: 'Arden Parish' },
-      sweetbell_flour: { es: '', en: 'Sweetbell Flour' },
-      windy_run: { es: '', en: 'Windy Run' },
-      iron_works: { es: '', en: 'Iron Works' },
-      fort_carmick: { es: '', en: 'Fort Carmick' },
-      nicholls_prison: { es: '', en: 'Nicholls Prison' },
-      wolfshead_arsenal: { es: '', en: 'Wolfshead Arsenal' },
-      bradley_craven_brickworks: { es: '', en: 'Bradley & Craven Brickworks' },
-      c_a_lumber: { es: '', en: 'C&A Lumber' },
-      hemlock_and_hide: { es: '', en: 'Hemlock and Hide' }
+      godard_docks: { es: 'Embarcadero de Godard', en: 'Godard Docks' },
+      blanc_brinery: { es: 'Conservera Blanc', en: 'Blanc Brinery' },
+      golden_acres: { es: 'Golden Acres', en: 'Golden Acres' },
+      salter_s_pork: { es: 'Granja Porcina de Salter', en: 'Salter\'s Pork' },
+      lawson_station: { es: 'Estación de Lawson', en: 'Lawson Station' },
+      maw_battery: { es: 'Fortificación Maw', en: 'Maw Battery' },
+      arden_parish: { es: 'Parroquia de Arden', en: 'Arden Parish' },
+      sweetbell_flour: { es: 'Harinas Sweetbell', en: 'Sweetbell Flour' },
+      windy_run: { es: 'Windy Run', en: 'Windy Run' },
+      iron_works: { es: 'Siderurgia', en: 'Iron Works' },
+      fort_carmick: { es: 'Fuerte Carmick', en: 'Fort Carmick' },
+      nicholls_prison: { es: 'Prisión Nicholls', en: 'Nicholls Prison' },
+      wolfshead_arsenal: { es: 'Arsenal de Wolfshead', en: 'Wolfshead Arsenal' },
+      bradley_craven_brickworks: { es: 'Ladrillera Bradley & Craven', en: 'Bradley & Craven Brickworks' },
+      c_a_lumber: { es: 'Aserradero C&A', en: 'C&A Lumber' },
+      hemlock_and_hide: { es: 'Hemlock & Hide', en: 'Hemlock and Hide' }
     },
     desalle: {
       kingsnake_mine: { es: '', en: 'Kingsnake Mine' },
