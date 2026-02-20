@@ -693,8 +693,11 @@ function init() {
         minZoom: -2,
         maxZoom: 2,
         zoomSnap: 0.25,
-        attributionControl: false
+        attributionControl: false,
+        zoomControl: false
       });
+
+      L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
       applyTypeDefaultsOnce();
       createMapButtons();
