@@ -6,6 +6,10 @@ const markerLayersByType = {};
 let compoundNamesLayer;
 const imageSizeCache = new Map();
 const completedPoisByMap = new Map();
+const poiMarkersByMap = new Map();
+const selectedSpawnByMap = new Map();
+const allSpawnMarkersByMap = new Map();
+const spawnTextMarkerByMap = new Map();
 
 const STORAGE_KEYS = {
   activeMap: 'hunt_active_map',
@@ -25,7 +29,8 @@ const UI_TEXT = {
     all: 'Todo',
     none: 'Nada',
     compoundNames: 'Nombres de zonas',
-    type: 'Tipo'
+    type: 'Tipo',
+    spawnMessage: 'APARECISTE AQUÍ'
   },
   en: {
     language: 'Language',
@@ -34,7 +39,8 @@ const UI_TEXT = {
     all: 'All',
     none: 'None',
     compoundNames: 'Compound names',
-    type: 'Type'
+    type: 'Type',
+    spawnMessage: 'YOU SPAWNED HERE'
   }
 };
 
@@ -149,6 +155,104 @@ function getPoiId(mapId, index) {
   return `${mapId}:${index}`;
 }
 
+function getDistanceBetweenCoordinates(coord1, coord2) {
+  const [y1, x1] = coord1;
+  const [y2, x2] = coord2;
+  return Math.hypot(y2 - y1, x2 - x1);
+}
+
+function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, poi) {
+  const spawnLayer = markerLayersByType.spawn;
+  if (!spawnLayer) return;
+
+  const previousSelection = selectedSpawnByMap.get(mapId);
+  if (previousSelection && previousSelection.poiId === selectedPoiId) {
+    selectedSpawnByMap.delete(mapId);
+    applyPoiVisualState(selectedMarker, baseStyle, false);
+    const textMarker = spawnTextMarkerByMap.get(mapId);
+    if (textMarker && map.hasLayer(textMarker)) {
+      map.removeLayer(textMarker);
+      spawnTextMarkerByMap.delete(mapId);
+    }
+    spawnLayer.eachLayer((marker) => {
+      if (marker === selectedMarker) return;
+      if (marker?.poiState?.mapId === mapId) {
+        applyPoiVisualState(marker, marker.poiState.baseStyle, false);
+        if (map.hasLayer(spawnLayer)) {
+          spawnLayer.addLayer(marker);
+        }
+      }
+    });
+    return;
+  }
+
+  const allSpawns = [];
+  spawnLayer.eachLayer((marker) => {
+    if (marker?.poiState?.mapId === mapId) {
+      const coords = marker.getLatLng();
+      allSpawns.push({
+        marker,
+        coords: [coords.lat, coords.lng],
+        poiId: marker.poiState.poiId,
+        baseStyle: marker.poiState.baseStyle
+      });
+    }
+  });
+
+  const spawnDistance = allSpawns
+    .filter((s) => s.poiId !== selectedPoiId)
+    .map((s) => ({
+      ...s,
+      distance: getDistanceBetweenCoordinates(poi.coordinates, s.coords)
+    }))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 4);
+
+  selectedSpawnByMap.set(mapId, {
+    poiId: selectedPoiId,
+    marker: selectedMarker,
+    closestSpawns: spawnDistance.map((s) => s.poiId)
+  });
+
+  selectedMarker.setStyle({
+    radius: baseStyle.radius * 1.5,
+    color: '#ffffff',
+    fillColor: '#ffffff',
+    fillOpacity: 0.9,
+    weight: 3
+  });
+
+  const oldTextMarker = spawnTextMarkerByMap.get(mapId);
+  if (oldTextMarker && map.hasLayer(oldTextMarker)) {
+    map.removeLayer(oldTextMarker);
+  }
+
+  const textMarker = L.marker(poi.coordinates, {
+    icon: L.divIcon({
+      className: 'spawn-text-marker',
+      html: `<div style="font-weight:bold;color:#ffffff;text-shadow:2px 2px 4px #000;font-size:14px;white-space:nowrap;">${getUIText('spawnMessage')}</div>`,
+      iconSize: [150, 30],
+      iconAnchor: [75, 30]
+    }),
+    interactive: false
+  });
+  textMarker.addTo(map);
+  spawnTextMarkerByMap.set(mapId, textMarker);
+
+  spawnLayer.eachLayer((marker) => {
+    if (marker === selectedMarker) return;
+    if (marker?.poiState?.mapId !== mapId) return;
+
+    const isClosest = spawnDistance.some((s) => s.poiId === marker.poiState.poiId);
+    if (isClosest) {
+      applyPoiVisualState(marker, marker.poiState.baseStyle, false);
+      if (map.hasLayer(spawnLayer)) spawnLayer.addLayer(marker);
+    } else if (map.hasLayer(spawnLayer)) {
+      spawnLayer.removeLayer(marker);
+    }
+  });
+}
+
 function applyPoiVisualState(marker, baseStyle, isCompleted) {
   marker.setStyle({
     radius: isCompleted ? Math.max(3, Math.round(baseStyle.radius * 0.8)) : baseStyle.radius,
@@ -182,6 +286,22 @@ function resetCurrentMapPoiState() {
   }
 
   completedPoisByMap.set(activeMapId, new Set());
+  selectedSpawnByMap.delete(activeMapId);
+
+  const textMarker = spawnTextMarkerByMap.get(activeMapId);
+  if (textMarker && map.hasLayer(textMarker)) {
+    map.removeLayer(textMarker);
+  }
+  spawnTextMarkerByMap.delete(activeMapId);
+
+  const spawnLayer = markerLayersByType.spawn;
+  if (spawnLayer && getSavedTypeState('spawn')) {
+    const spawnMarkers = allSpawnMarkersByMap.get(activeMapId) || [];
+    spawnMarkers.forEach((marker) => {
+      spawnLayer.addLayer(marker);
+      applyPoiVisualState(marker, marker.poiState.baseStyle, false);
+    });
+  }
 
   Object.values(markerLayersByType).forEach((layer) => {
     layer.eachLayer((marker) => {
@@ -189,7 +309,9 @@ function resetCurrentMapPoiState() {
         return;
       }
 
-      applyPoiVisualState(marker, marker.poiState.baseStyle, false);
+      if (layer !== spawnLayer) {
+        applyPoiVisualState(marker, marker.poiState.baseStyle, false);
+      }
     });
   });
 }
@@ -309,6 +431,10 @@ function clearMapLayers() {
     delete markerLayersByType[key];
   });
 
+  if (activeMapId) {
+    allSpawnMarkersByMap.delete(activeMapId);
+  }
+
   if (compoundNamesLayer && map.hasLayer(compoundNamesLayer)) {
     map.removeLayer(compoundNamesLayer);
   }
@@ -382,8 +508,6 @@ function renderPOIs(mapConfig) {
       ? style.levels[String(poi.level)]
       : style.color;
 
-    const translatedTypeLabel = getPoiTypeLabel(poi.type, style.label);
-
     const marker = L.circleMarker(poi.coordinates, {
       radius: style.radius,
       color: style.borderColor,
@@ -416,14 +540,24 @@ function renderPOIs(mapConfig) {
       }
 
       lastToggleAt = now;
-      togglePoiCompletion(mapConfig.id, poiId, marker, baseStyle);
+      if (poi.type === 'spawn') {
+        handleSpawnSelection(mapConfig.id, poiId, marker, baseStyle, poi);
+      } else {
+        togglePoiCompletion(mapConfig.id, poiId, marker, baseStyle);
+      }
     };
 
     marker.on('click', handleMarkerInteraction);
     marker.on('popupopen', handleMarkerInteraction);
 
-    /* marker.bindPopup(`<strong>${poi.name}</strong><br/>${getUIText('type')}: ${translatedTypeLabel}`); */
     markerLayersByType[poi.type].addLayer(marker);
+
+    if (poi.type === 'spawn') {
+      if (!allSpawnMarkersByMap.has(mapConfig.id)) {
+        allSpawnMarkersByMap.set(mapConfig.id, []);
+      }
+      allSpawnMarkersByMap.get(mapConfig.id).push(marker);
+    }
   });
 
   Object.keys(markerLayersByType).forEach((type) => {
