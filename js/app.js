@@ -7,11 +7,14 @@ let compoundNamesLayer;
 const imageSizeCache = new Map();
 
 const STORAGE_KEYS = {
-  activeMap: 'hunt_mvp_active_map',
-  typePrefix: 'hunt_mvp_type_',
-  compoundNames: 'hunt_mvp_compound_names',
-  language: 'hunt_mvp_language'
+  activeMap: 'hunt_active_map',
+  typePrefix: 'hunt_type_',
+  compoundNames: 'hunt_compound_names',
+  language: 'hunt_language',
+  typeDefaultsVersion: 'hunt_type_defaults_v1'
 };
+
+const DEFAULT_VISIBLE_TYPES = new Set(['spawn', 'tower', 'big_tower', 'workbench']);
 
 const UI_TEXT = {
   es: {
@@ -114,7 +117,7 @@ function getMapConfig(mapId) {
 
 function getSavedTypeState(type) {
   const value = localStorage.getItem(`${STORAGE_KEYS.typePrefix}${type}`);
-  return value === null ? true : value === 'true';
+  return value === null ? DEFAULT_VISIBLE_TYPES.has(type) : value === 'true';
 }
 
 function setSavedTypeState(type, checked) {
@@ -124,6 +127,18 @@ function setSavedTypeState(type, checked) {
 function getSavedCompoundNameState() {
   const value = localStorage.getItem(STORAGE_KEYS.compoundNames);
   return value === null ? true : value === 'true';
+}
+
+function applyTypeDefaultsOnce() {
+  if (localStorage.getItem(STORAGE_KEYS.typeDefaultsVersion) === 'true') {
+    return;
+  }
+
+  Object.keys(POI_TYPES).forEach((type) => {
+    setSavedTypeState(type, DEFAULT_VISIBLE_TYPES.has(type));
+  });
+
+  localStorage.setItem(STORAGE_KEYS.typeDefaultsVersion, 'true');
 }
 
 function createButton(text, className = 'btn') {
@@ -443,6 +458,7 @@ function init() {
         attributionControl: false
       });
 
+      applyTypeDefaultsOnce();
       createMapButtons();
       buildLegend();
       bindUI();
