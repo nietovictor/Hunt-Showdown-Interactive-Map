@@ -10,6 +10,7 @@ const poiMarkersByMap = new Map();
 const selectedSpawnByMap = new Map();
 const allSpawnMarkersByMap = new Map();
 const spawnTextMarkerByMap = new Map();
+let currentMapBounds = null;
 
 const STORAGE_KEYS = {
   activeMap: 'hunt_active_map',
@@ -30,7 +31,8 @@ const UI_TEXT = {
     none: 'Nada',
     compoundNames: 'Nombres de zonas',
     type: 'Tipo',
-    spawnMessage: 'APARECISTE AQUÍ'
+    spawnMessage: 'APARECISTE AQUÍ',
+    fitMap: 'Ajustar mapa a pantalla'
   },
   en: {
     language: 'Language',
@@ -40,7 +42,8 @@ const UI_TEXT = {
     none: 'None',
     compoundNames: 'Compound names',
     type: 'Type',
-    spawnMessage: 'YOU SPAWNED HERE'
+    spawnMessage: 'YOU SPAWNED HERE',
+    fitMap: 'Fit map to screen'
   }
 };
 
@@ -79,6 +82,11 @@ function applyStaticTranslations() {
   const compoundNamesLabel = document.getElementById('compoundNamesLabel');
   if (compoundNamesLabel) {
     compoundNamesLabel.textContent = getUIText('compoundNames');
+  }
+
+  const fitMapBtn = document.querySelector('.leaflet-control-fit-map');
+  if (fitMapBtn) {
+    fitMapBtn.title = getUIText('fitMap');
   }
 }
 
@@ -421,6 +429,8 @@ function updateTypeVisibility(type, visible) {
 }
 
 function clearMapLayers() {
+  globalThis.resizeMapHandler && globalThis.removeEventListener('resize', globalThis.resizeMapHandler);
+  
   Object.values(markerLayersByType).forEach((layer) => {
     if (map.hasLayer(layer)) {
       map.removeLayer(layer);
@@ -488,7 +498,15 @@ async function renderOverlay(mapConfig) {
 
   overlay = L.imageOverlay(mapConfig.image, bounds).addTo(map);
   map.setMaxBounds(bounds);
-  map.fitBounds(bounds);
+  
+  currentMapBounds = bounds;
+  
+  globalThis.resizeMapHandler = () => {
+    map.fitBounds(currentMapBounds, { animate: false });
+  };
+  
+  globalThis.resizeMapHandler();
+  globalThis.addEventListener('resize', globalThis.resizeMapHandler);
 }
 
 function renderPOIs(mapConfig) {
@@ -672,6 +690,50 @@ function showLoadError(error) {
   console.error(error);
 }
 
+function fitMapToCurrentView() {
+  if (currentMapBounds && map) {
+    map.fitBounds(currentMapBounds, { animate: true });
+  }
+}
+
+function createFitMapControl() {
+  const FitMapControl = L.Control.extend({
+    options: {
+      position: 'bottomleft'
+    },
+    onAdd() {
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      const button = L.DomUtil.create('a', 'leaflet-control-fit-map', container);
+      button.href = '#';
+      button.title = getUIText('fitMap');
+      button.style.width = '42px';
+      button.style.height = '42px';
+      button.style.display = 'flex';
+      button.style.alignItems = 'center';
+      button.style.justifyContent = 'center';
+      button.style.textDecoration = 'none';
+      button.style.cursor = 'pointer';
+
+      const img = document.createElement('img');
+      img.src = 'assets/icons/fit-map.png';
+      img.alt = getUIText('fitMap');
+      img.style.width = '38px';
+      img.style.height = '38px';
+      img.style.display = 'block';
+      button.appendChild(img);
+
+      L.DomEvent.on(button, 'click', (e) => {
+        L.DomEvent.preventDefault(e);
+        fitMapToCurrentView();
+      });
+
+      return container;
+    }
+  });
+
+  return new FitMapControl();
+}
+
 function init() {
   loadMapAndPoiData()
     .then(() => {
@@ -690,13 +752,14 @@ function init() {
 
       map = L.map('map', {
         crs: L.CRS.Simple,
-        minZoom: -2,
+        minZoom: -3,
         maxZoom: 2,
-        zoomSnap: 0.25,
+        zoomSnap: 0.05,
         attributionControl: false,
         zoomControl: false
       });
 
+      createFitMapControl().addTo(map);
       L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
       applyTypeDefaultsOnce();
