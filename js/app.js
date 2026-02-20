@@ -5,6 +5,7 @@ let currentLanguage = 'es';
 const markerLayersByType = {};
 let compoundNamesLayer;
 const imageSizeCache = new Map();
+const completedPoisByMap = new Map();
 
 const STORAGE_KEYS = {
   activeMap: 'hunt_active_map',
@@ -20,6 +21,7 @@ const UI_TEXT = {
   es: {
     language: 'Idioma',
     legend: 'Leyenda',
+    resetMatch: 'Resetear marcadores',
     all: 'Todo',
     none: 'Nada',
     compoundNames: 'Nombres de zonas',
@@ -28,6 +30,7 @@ const UI_TEXT = {
   en: {
     language: 'Language',
     legend: 'Legend',
+    resetMatch: 'Reset markers',
     all: 'All',
     none: 'None',
     compoundNames: 'Compound names',
@@ -50,6 +53,11 @@ function applyStaticTranslations() {
   const toggleLegendBtn = document.getElementById('toggleLegendBtn');
   if (toggleLegendBtn) {
     toggleLegendBtn.textContent = getUIText('legend');
+  }
+
+  const resetPoisBtn = document.getElementById('resetPoisBtn');
+  if (resetPoisBtn) {
+    resetPoisBtn.textContent = getUIText('resetMatch');
   }
 
   const legendAll = document.getElementById('legendAll');
@@ -127,6 +135,63 @@ function setSavedTypeState(type, checked) {
 function getSavedCompoundNameState() {
   const value = localStorage.getItem(STORAGE_KEYS.compoundNames);
   return value === null ? true : value === 'true';
+}
+
+function getMapCompletionSet(mapId) {
+  if (!completedPoisByMap.has(mapId)) {
+    completedPoisByMap.set(mapId, new Set());
+  }
+
+  return completedPoisByMap.get(mapId);
+}
+
+function getPoiId(mapId, index) {
+  return `${mapId}:${index}`;
+}
+
+function applyPoiVisualState(marker, baseStyle, isCompleted) {
+  marker.setStyle({
+    radius: isCompleted ? Math.max(3, Math.round(baseStyle.radius * 0.8)) : baseStyle.radius,
+    color: isCompleted ? '#c4c4c4' : baseStyle.color,
+    fillColor: isCompleted ? '#7b7b7b' : baseStyle.fillColor,
+    opacity: isCompleted ? 0.85 : 1,
+    fillOpacity: isCompleted ? 0.25 : baseStyle.fillOpacity,
+    weight: baseStyle.weight
+  });
+
+  marker.redraw();
+}
+
+function togglePoiCompletion(mapId, poiId, marker, baseStyle) {
+  const completionSet = getMapCompletionSet(mapId);
+  const isCompleted = completionSet.has(poiId);
+
+  if (isCompleted) {
+    completionSet.delete(poiId);
+    applyPoiVisualState(marker, baseStyle, false);
+    return;
+  }
+
+  completionSet.add(poiId);
+  applyPoiVisualState(marker, baseStyle, true);
+}
+
+function resetCurrentMapPoiState() {
+  if (!activeMapId) {
+    return;
+  }
+
+  completedPoisByMap.set(activeMapId, new Set());
+
+  Object.values(markerLayersByType).forEach((layer) => {
+    layer.eachLayer((marker) => {
+      if (marker?.poiState?.mapId !== activeMapId) {
+        return;
+      }
+
+      applyPoiVisualState(marker, marker.poiState.baseStyle, false);
+    });
+  });
 }
 
 function applyTypeDefaultsOnce() {
@@ -301,7 +366,9 @@ async function renderOverlay(mapConfig) {
 }
 
 function renderPOIs(mapConfig) {
-  mapConfig.pois.forEach((poi) => {
+  const completionSet = getMapCompletionSet(mapConfig.id);
+
+  mapConfig.pois.forEach((poi, index) => {
     const style = POI_TYPES[poi.type];
     if (!style) {
       return;
@@ -325,7 +392,37 @@ function renderPOIs(mapConfig) {
       weight: 2
     });
 
-    marker.bindPopup(`<strong>${poi.name}</strong><br/>${getUIText('type')}: ${translatedTypeLabel}`);
+    const baseStyle = {
+      radius: style.radius,
+      color: style.borderColor,
+      fillColor: levelColor,
+      fillOpacity: 0.85,
+      weight: 2
+    };
+
+    const poiId = getPoiId(mapConfig.id, index);
+    marker.poiState = {
+      mapId: mapConfig.id,
+      poiId,
+      baseStyle
+    };
+
+    applyPoiVisualState(marker, baseStyle, completionSet.has(poiId));
+    let lastToggleAt = 0;
+    const handleMarkerInteraction = () => {
+      const now = Date.now();
+      if (now - lastToggleAt < 120) {
+        return;
+      }
+
+      lastToggleAt = now;
+      togglePoiCompletion(mapConfig.id, poiId, marker, baseStyle);
+    };
+
+    marker.on('click', handleMarkerInteraction);
+    marker.on('popupopen', handleMarkerInteraction);
+
+    /* marker.bindPopup(`<strong>${poi.name}</strong><br/>${getUIText('type')}: ${translatedTypeLabel}`); */
     markerLayersByType[poi.type].addLayer(marker);
   });
 
@@ -378,6 +475,7 @@ function bindUI() {
   const legend = document.getElementById('legend');
   const legendAll = document.getElementById('legendAll');
   const legendNone = document.getElementById('legendNone');
+  const resetPoisBtn = document.getElementById('resetPoisBtn');
   const languageSelect = document.getElementById('languageSelect');
 
   toggleMenuBtn.addEventListener('click', () => {
@@ -407,6 +505,12 @@ function bindUI() {
       updateTypeVisibility(type, false);
     });
   });
+
+  if (resetPoisBtn) {
+    resetPoisBtn.addEventListener('click', () => {
+      resetCurrentMapPoiState();
+    });
+  }
 
   if (languageSelect) {
     languageSelect.value = currentLanguage;
