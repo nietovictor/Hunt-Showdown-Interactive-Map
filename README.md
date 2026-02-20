@@ -1,58 +1,50 @@
 # Hunt: Showdown 1896 - Interactive Map
 
+Track your progress during matches with this interactive map tool.
+
 ## Features
-- Map with background image (`CRS.Simple`)
-- Map selector buttons
-- Legend with POI type filters
-- Select all / none actions
-- Toggleable compound names
-- Filter persistence with `localStorage`
-- Marker popups
 
-## Project Structure
+- **Multiple maps**: Switch between different <i>Hunt: Showdown 1896</i> maps
+- **Click to mark POIs**: Click any marker to grey it out when you've cleared it
+- **Spawn selection**: Click your spawn point to:
+  - Highlight your spawn location 
+  - Show only the 4 closest spawn points
+- **Match reset**: Clear all progress when starting a new match
+- **Compound Names**: Toggle location names on/off
+- **POI filters**: Show/hide different marker types (workbenches, towers, spawns, etc.)
+- **Language**: Switch between Spanish and English
+- **Auto-Fit**: Map automatically fits your screen resolution
+- **Fit button**: Manually re-adjust map to screen with one click
+- **Persistent settings**: Your preferences are saved automatically
 
-- `index.html`: main application layout
-- `pages/about.html`: secondary page (base)
-- `pages/guide.html`: secondary page (base)
-- `css/styles.css`: styles
-- `js/data.js`: data normalization and loading
-- `js/app.js`: map and UI logic
-- `js/translations.js`: ES/EN translations
-- `data/poiData.json`: map and point data
-- `data/poiIcons.json`: POI type configuration
-- `assets/maps/`: base map images
-- `assets/images/`: future project images
+## How to Use
 
-## Run Locally
+### Running the Map
+**Run localy**
+1. Open terminal in the project folder
+2. Run: `python -m http.server 8080`
+3. Open browser: `http://localhost:8080`
 
-1. In the project folder, run:
-   - `python -m http.server 8080`
-2. Open:
-   - `http://localhost:8080`
-3. Available views:
-   - `http://localhost:8080/index.html`
-   - `http://localhost:8080/pages/about.html`
-   - `http://localhost:8080/pages/guide.html`
+**Deployed in GitHub pages**<br>
+[Hunt Showdown map in GitHub pages](https://nietovictor.github.io/Hunt-Showdown-Interactive-Map/)
 
-## Multi-HTML Mode
+### During a Match
 
-- To add new views, create additional files inside `pages/`.
-- Keep shared resources in `css/`, `js/`, `data/`, and `assets/`.
-- From files inside `pages/`, use `../` relative paths to access root-level folders.
+1. **Select your map** using the buttons at the top
+2. **Click your spawn point** - it will turn white and show nearby spawns
+3. **Click markers** as you clear areas - they turn grey
+4. **Start new match**: Click "Reset markers" button to clear everything
+
+### Controls
+
+- **Zoom**: Use +/- buttons (bottom-left) or mouse wheel
+- **Fit map**: Click the square icon to fit map to your screen
+- **Legend**: Toggle sidebar to filter marker types
+- **Language**: Switch between EN/ES in top-right corner
 
 ## Customization
 
-- To add/remove categories: edit `POI_TYPES` in `js/data.js`.
-- To update maps and markers: review data loading in `js/data.js` and the JSON files in `data/`.
-- To change styling: edit `css/styles.css`.
-
-## Languages (ES / EN)
-
-- The language selector is in the top-right corner.
-- Translations are defined in `js/translations.js`.
-- `I18N` sections:
-  - `mapNames`: map names by `mapId`.
-  - `poiTypes`: marker/legend type names by `type`.
-  - `compounds`: compound names by `mapId` and `compoundKey`.
-
-If a translation is missing, the app falls back to the original text.
+- **Add maps**: Edit `data/poiData.json`
+- **Change marker colors**: Edit `data/poiIcons.json`
+- **Adjust styling**: Edit `css/styles.css`
+- **Translations**: Edit `js/translations.js`
