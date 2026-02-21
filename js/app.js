@@ -1039,6 +1039,12 @@ function clearMapLayers() {
     delete markerLayersByType[key];
   });
 
+  spawnTextMarkerByMap.forEach((textMarker) => {
+    if (textMarker && map.hasLayer(textMarker)) {
+      map.removeLayer(textMarker);
+    }
+  });
+
   if (activeMapId) {
     allSpawnMarkersByMap.delete(activeMapId);
   }
@@ -1314,7 +1320,7 @@ function createFitMapControl() {
       button.style.cursor = 'pointer';
 
       const img = document.createElement('img');
-      img.src = 'assets/icons/fit-map.png';
+      img.src = 'assets/icons/fitMap.png';
       img.alt = getUIText('fitMap');
       img.style.width = '38px';
       img.style.height = '38px';
