@@ -42,45 +42,12 @@ const STORAGE_KEYS = {
 
 const DEFAULT_VISIBLE_TYPES = new Set(['spawn', 'tower', 'big_tower', 'workbench']);
 
-const UI_TEXT = {
-  es: {
-    language: 'Idioma',
-    legend: 'Leyenda',
-    resetMatch: 'Resetear marcadores',
-    all: 'Todo',
-    none: 'Nada',
-    compoundNames: 'Nombres de zonas',
-    type: 'Tipo',
-    spawnMessage: 'APARECISTE AQUÍ',
-    fitMap: 'Ajustar mapa a pantalla',
-    drawFreehand: 'Dibujo libre',
-    drawMeasureLine: 'Medir distancia',
-    drawCircle150: 'Rangod de vision oscura',
-    drawErase: 'Goma de borrar',
-    drawUndo: 'Atrás',
-    drawClear: 'Limpiar'
-  },
-  en: {
-    language: 'Language',
-    legend: 'Legend',
-    resetMatch: 'Reset markers',
-    all: 'All',
-    none: 'None',
-    compoundNames: 'Compound names',
-    type: 'Type',
-    spawnMessage: 'YOU SPAWNED HERE',
-    fitMap: 'Fit map to screen',
-    drawFreehand: 'Freehand',
-    drawMeasureLine: 'Measure distance',
-    drawCircle150: 'Darksight range',
-    drawErase: 'Eraser',
-    drawUndo: 'Undo',
-    drawClear: 'Clear'
-  }
-};
-
 function getUIText(key) {
-  return UI_TEXT[currentLanguage]?.[key] || UI_TEXT.es[key] || key;
+  if (typeof getUITextTranslation === 'function') {
+    return getUITextTranslation(key, currentLanguage, key);
+  }
+
+  return key;
 }
 
 function applyStaticTranslations() {

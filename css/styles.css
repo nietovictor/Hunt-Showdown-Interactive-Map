@@ -179,7 +179,7 @@ main {
   position: fixed;
   top: 54px;
   right: 10px;
-  z-index: 1001;
+  z-index: 1400;
   width: 230px;
   max-height: 75vh;
   overflow: auto;

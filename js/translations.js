@@ -2,6 +2,23 @@
 // Configuración centralizada de idiomas (ES/EN) para mapas, tipos de POI y compuestos
 
 const TRANSLATIONS = {
+  ui: {
+    language: { es: 'Idioma', en: 'Language' },
+    legend: { es: 'Leyenda', en: 'Legend' },
+    resetMatch: { es: 'Resetear marcadores', en: 'Reset markers' },
+    all: { es: 'Todo', en: 'All' },
+    none: { es: 'Nada', en: 'None' },
+    compoundNames: { es: 'Nombres de zonas', en: 'Compound names' },
+    type: { es: 'Tipo', en: 'Type' },
+    spawnMessage: { es: 'APARECISTE AQUÍ', en: 'YOU SPAWNED HERE' },
+    fitMap: { es: 'Ajustar mapa a pantalla', en: 'Fit map to screen' },
+    drawFreehand: { es: 'Dibujo libre', en: 'Freehand' },
+    drawMeasureLine: { es: 'Medir distancia', en: 'Measure distance' },
+    drawCircle150: { es: 'Rango de vision oscura', en: 'Darksight range' },
+    drawErase: { es: 'Goma de borrar', en: 'Eraser' },
+    drawUndo: { es: 'Atrás', en: 'Undo' },
+    drawClear: { es: 'Limpiar', en: 'Clear' }
+  },
   mapNames: {
     stillwater: { es: 'Pantano de Stillwater', en: 'Stillwater Bayou' },
     lawson: { es: 'Delta del Lawson', en: 'Lawson Delta' },
@@ -177,4 +194,8 @@ function getCompoundDisplayName(mapId, compoundKey, fallbackName, language) {
   }
 
   return getTranslation(mapTranslations[compoundKey], language, fallbackName);
+}
+
+function getUITextTranslation(key, language, fallback = key) {
+  return getTranslation(TRANSLATIONS.ui?.[key], language, fallback);
 }
