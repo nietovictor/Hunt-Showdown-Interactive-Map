@@ -11,6 +11,26 @@ const selectedSpawnByMap = new Map();
 const allSpawnMarkersByMap = new Map();
 const spawnTextMarkerByMap = new Map();
 let currentMapBounds = null;
+const drawingsLayerByMap = new Map();
+const drawingHistoryByMap = new Map();
+let drawingGlobalListenersBound = false;
+const drawingState = {
+  mode: 'none',
+  isFreehandDrawing: false,
+  freehandPoints: [],
+  freehandPreviewLayer: null,
+  isLineDrawing: false,
+  lineDraftStart: null,
+  linePreviewLayer: null
+};
+
+const DRAW_MODES = {
+  none: 'none',
+  freehand: 'freehand',
+  line: 'line',
+  circle: 'circle',
+  erase: 'erase'
+};
 
 const STORAGE_KEYS = {
   activeMap: 'hunt_active_map',
@@ -32,7 +52,13 @@ const UI_TEXT = {
     compoundNames: 'Nombres de zonas',
     type: 'Tipo',
     spawnMessage: 'APARECISTE AQUÍ',
-    fitMap: 'Ajustar mapa a pantalla'
+    fitMap: 'Ajustar mapa a pantalla',
+    drawFreehand: 'Dibujo libre',
+    drawMeasureLine: 'Medir distancia',
+    drawCircle150: 'Rangod de vision oscura',
+    drawErase: 'Goma de borrar',
+    drawUndo: 'Atrás',
+    drawClear: 'Limpiar'
   },
   en: {
     language: 'Language',
@@ -43,7 +69,13 @@ const UI_TEXT = {
     compoundNames: 'Compound names',
     type: 'Type',
     spawnMessage: 'YOU SPAWNED HERE',
-    fitMap: 'Fit map to screen'
+    fitMap: 'Fit map to screen',
+    drawFreehand: 'Freehand',
+    drawMeasureLine: 'Measure distance',
+    drawCircle150: 'Darksight range',
+    drawErase: 'Eraser',
+    drawUndo: 'Undo',
+    drawClear: 'Clear'
   }
 };
 
@@ -87,6 +119,36 @@ function applyStaticTranslations() {
   const fitMapBtn = document.querySelector('.leaflet-control-fit-map');
   if (fitMapBtn) {
     fitMapBtn.title = getUIText('fitMap');
+  }
+
+  const drawFreehandBtn = document.getElementById('drawFreehandBtn');
+  if (drawFreehandBtn) {
+    drawFreehandBtn.textContent = getUIText('drawFreehand');
+  }
+
+  const drawMeasureLineBtn = document.getElementById('drawMeasureLineBtn');
+  if (drawMeasureLineBtn) {
+    drawMeasureLineBtn.textContent = getUIText('drawMeasureLine');
+  }
+
+  const drawCircle150Btn = document.getElementById('drawCircle150Btn');
+  if (drawCircle150Btn) {
+    drawCircle150Btn.textContent = getUIText('drawCircle150');
+  }
+
+  const drawEraseBtn = document.getElementById('drawEraseBtn');
+  if (drawEraseBtn) {
+    drawEraseBtn.textContent = getUIText('drawErase');
+  }
+
+  const drawUndoBtn = document.getElementById('drawUndoBtn');
+  if (drawUndoBtn) {
+    drawUndoBtn.textContent = getUIText('drawUndo');
+  }
+
+  const drawClearBtn = document.getElementById('drawClearBtn');
+  if (drawClearBtn) {
+    drawClearBtn.textContent = getUIText('drawClear');
   }
 }
 
@@ -167,6 +229,567 @@ function getDistanceBetweenCoordinates(coord1, coord2) {
   const [y1, x1] = coord1;
   const [y2, x2] = coord2;
   return Math.hypot(y2 - y1, x2 - x1);
+}
+
+function getDrawingHistory(mapId) {
+  if (!drawingHistoryByMap.has(mapId)) {
+    drawingHistoryByMap.set(mapId, []);
+  }
+  return drawingHistoryByMap.get(mapId);
+}
+
+function getDrawingsLayer(mapId) {
+  if (!drawingsLayerByMap.has(mapId)) {
+    drawingsLayerByMap.set(mapId, L.layerGroup());
+  }
+  return drawingsLayerByMap.get(mapId);
+}
+
+function addDrawLayerToHistory(layer) {
+  if (!activeMapId || !layer) {
+    return;
+  }
+
+  getDrawingsLayer(activeMapId).addLayer(layer);
+  getDrawingHistory(activeMapId).push(layer);
+}
+
+function clearLinePreview() {
+  if (drawingState.linePreviewLayer && map?.hasLayer(drawingState.linePreviewLayer)) {
+    map.removeLayer(drawingState.linePreviewLayer);
+  }
+
+  drawingState.linePreviewLayer = null;
+  drawingState.lineDraftStart = null;
+  drawingState.isLineDrawing = false;
+}
+
+function setDrawingInputLock(enabled) {
+  const body = document.body;
+  if (body) {
+    body.classList.toggle('drawing-input-lock', Boolean(enabled));
+  }
+}
+
+function stopActiveDrawingSession() {
+  const wasFreehandDrawing = drawingState.isFreehandDrawing;
+  const wasLineDrawing = drawingState.isLineDrawing;
+
+  drawingState.isFreehandDrawing = false;
+  drawingState.freehandPoints = [];
+
+  if (drawingState.freehandPreviewLayer && map?.hasLayer(drawingState.freehandPreviewLayer)) {
+    map.removeLayer(drawingState.freehandPreviewLayer);
+  }
+  drawingState.freehandPreviewLayer = null;
+
+  clearLinePreview();
+  setDrawingInputLock(false);
+
+  if ((wasFreehandDrawing || wasLineDrawing) && map) {
+    syncMapDraggingWithDrawMode();
+  }
+}
+
+function resetTransientDrawingState() {
+  stopActiveDrawingSession();
+}
+
+function updateDrawModeButtons() {
+  const freehandBtn = document.getElementById('drawFreehandBtn');
+  const measureBtn = document.getElementById('drawMeasureLineBtn');
+  const circleBtn = document.getElementById('drawCircle150Btn');
+  const eraseBtn = document.getElementById('drawEraseBtn');
+
+  if (freehandBtn) {
+    freehandBtn.classList.toggle('active', drawingState.mode === DRAW_MODES.freehand);
+  }
+  if (measureBtn) {
+    measureBtn.classList.toggle('active', drawingState.mode === DRAW_MODES.line);
+  }
+  if (circleBtn) {
+    circleBtn.classList.toggle('active', drawingState.mode === DRAW_MODES.circle);
+  }
+  if (eraseBtn) {
+    eraseBtn.classList.toggle('active', drawingState.mode === DRAW_MODES.erase);
+  }
+}
+
+function updateMapDrawCursor() {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) {
+    return;
+  }
+
+  const hasActiveDrawMode = drawingState.mode !== DRAW_MODES.none;
+  mapElement.classList.toggle('drawing-active', hasActiveDrawMode);
+}
+
+function updateMapInteractionLockForDraw() {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) {
+    return;
+  }
+
+  const shouldLockOverlayInteraction = drawingState.mode === DRAW_MODES.freehand
+    || drawingState.mode === DRAW_MODES.line
+    || drawingState.mode === DRAW_MODES.erase;
+  mapElement.classList.toggle('drawing-lock-overlays', shouldLockOverlayInteraction);
+}
+
+function syncMapDraggingWithDrawMode() {
+  if (!map?.dragging) {
+    return;
+  }
+
+  const shouldDisableDragging = drawingState.mode === DRAW_MODES.line
+    || drawingState.mode === DRAW_MODES.circle
+    || drawingState.mode === DRAW_MODES.erase;
+
+  if (shouldDisableDragging && map.dragging.enabled()) {
+    map.dragging.disable();
+    return;
+  }
+
+  if (!shouldDisableDragging && !map.dragging.enabled()) {
+    map.dragging.enable();
+  }
+}
+
+function setDrawingMode(mode) {
+  drawingState.mode = drawingState.mode === mode ? DRAW_MODES.none : mode;
+  resetTransientDrawingState();
+  updateDrawModeButtons();
+  updateMapDrawCursor();
+  updateMapInteractionLockForDraw();
+  syncMapDraggingWithDrawMode();
+}
+
+function getMetersPerMapUnit() {
+  if (!currentMapBounds || !Array.isArray(currentMapBounds) || currentMapBounds.length !== 2) {
+    return 1;
+  }
+
+  const heightUnits = Math.abs(currentMapBounds[1][0] - currentMapBounds[0][0]);
+  const widthUnits = Math.abs(currentMapBounds[1][1] - currentMapBounds[0][1]);
+
+  if (!Number.isFinite(heightUnits) || !Number.isFinite(widthUnits) || !heightUnits || !widthUnits) {
+    return 1;
+  }
+
+  const averageUnits = (heightUnits + widthUnits) / 2;
+  return 1000 / averageUnits;
+}
+
+function getMidPoint(start, end) {
+  return [
+    (start[0] + end[0]) / 2,
+    (start[1] + end[1]) / 2
+  ];
+}
+
+function formatDistanceMeters(meters) {
+  return `${Math.round(meters)} m`;
+}
+
+function createDistanceLine(start, end) {
+  const line = L.polyline([start, end], {
+    color: '#ff3b3b',
+    weight: 3,
+    opacity: 0.95
+  });
+
+  const mapUnitsDistance = getDistanceBetweenCoordinates(start, end);
+  const metersDistance = mapUnitsDistance * getMetersPerMapUnit();
+  line.bindTooltip(formatDistanceMeters(metersDistance), {
+    permanent: true,
+    className: 'draw-distance-tooltip',
+    direction: 'center',
+    interactive: false
+  });
+
+  line.openTooltip(getMidPoint(start, end));
+  return line;
+}
+
+function createCirclePolygon(center, radiusMeters) {
+  const metersPerMapUnit = getMetersPerMapUnit();
+  const radiusUnits = radiusMeters / metersPerMapUnit;
+  const points = [];
+  const segments = 48;
+
+  for (let index = 0; index < segments; index += 1) {
+    const angle = (Math.PI * 2 * index) / segments;
+    const y = center[0] + (Math.sin(angle) * radiusUnits);
+    const x = center[1] + (Math.cos(angle) * radiusUnits);
+    points.push([y, x]);
+  }
+
+  return L.polygon(points, {
+    color: '#ff3b3b',
+    weight: 2,
+    fillColor: '#ff3b3b',
+    fillOpacity: 0.08
+  });
+}
+
+function getLatLngGroups(layer) {
+  const latLngs = layer.getLatLngs?.();
+  if (!Array.isArray(latLngs) || latLngs.length === 0) {
+    return [];
+  }
+
+  if (Array.isArray(latLngs[0])) {
+    return latLngs;
+  }
+
+  return [latLngs];
+}
+
+function getPointToSegmentDistance(point, segmentStart, segmentEnd) {
+  const abX = segmentEnd.x - segmentStart.x;
+  const abY = segmentEnd.y - segmentStart.y;
+  const apX = point.x - segmentStart.x;
+  const apY = point.y - segmentStart.y;
+  const abSquare = (abX * abX) + (abY * abY);
+
+  if (abSquare === 0) {
+    return Math.hypot(apX, apY);
+  }
+
+  const t = Math.max(0, Math.min(1, ((apX * abX) + (apY * abY)) / abSquare));
+  const closestX = segmentStart.x + (abX * t);
+  const closestY = segmentStart.y + (abY * t);
+  return Math.hypot(point.x - closestX, point.y - closestY);
+}
+
+function getDistanceToLayerInPixels(layer, clickLatLng) {
+  if (!map || !layer || !clickLatLng || !layer.getLatLngs) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const clickPoint = map.latLngToLayerPoint(clickLatLng);
+  const groups = getLatLngGroups(layer);
+  let minDistance = Number.POSITIVE_INFINITY;
+
+  groups.forEach((group) => {
+    if (!Array.isArray(group) || group.length < 2) {
+      return;
+    }
+
+    for (let index = 0; index < group.length - 1; index += 1) {
+      const startPoint = map.latLngToLayerPoint(group[index]);
+      const endPoint = map.latLngToLayerPoint(group[index + 1]);
+      const distance = getPointToSegmentDistance(clickPoint, startPoint, endPoint);
+      minDistance = Math.min(minDistance, distance);
+    }
+
+    if (layer instanceof L.Polygon && group.length > 2) {
+      const startPoint = map.latLngToLayerPoint(group.at(-1));
+      const endPoint = map.latLngToLayerPoint(group[0]);
+      const distance = getPointToSegmentDistance(clickPoint, startPoint, endPoint);
+      minDistance = Math.min(minDistance, distance);
+    }
+  });
+
+  return minDistance;
+}
+
+function removeLayerFromHistory(mapId, layerToRemove) {
+  const history = getDrawingHistory(mapId);
+  const filteredHistory = history.filter((layer) => layer !== layerToRemove);
+  drawingHistoryByMap.set(mapId, filteredHistory);
+}
+
+function eraseNearestDrawing(clickLatLng) {
+  if (!activeMapId) {
+    return;
+  }
+
+  const drawLayer = getDrawingsLayer(activeMapId);
+  const ERASE_THRESHOLD_PX = 14;
+  let nearestLayer = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  drawLayer.eachLayer((layer) => {
+    if (!(layer instanceof L.Polyline || layer instanceof L.Polygon)) {
+      return;
+    }
+
+    const distance = getDistanceToLayerInPixels(layer, clickLatLng);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestLayer = layer;
+    }
+  });
+
+  if (!nearestLayer || nearestDistance > ERASE_THRESHOLD_PX) {
+    return;
+  }
+
+  drawLayer.removeLayer(nearestLayer);
+  removeLayerFromHistory(activeMapId, nearestLayer);
+}
+
+function undoLastDrawing() {
+  if (!activeMapId) {
+    return;
+  }
+
+  const history = getDrawingHistory(activeMapId);
+  const layer = history.pop();
+  if (!layer) {
+    return;
+  }
+
+  const drawLayer = getDrawingsLayer(activeMapId);
+  drawLayer.removeLayer(layer);
+}
+
+function clearAllDrawings() {
+  if (!activeMapId) {
+    return;
+  }
+
+  const drawLayer = getDrawingsLayer(activeMapId);
+  drawLayer.clearLayers();
+  drawingHistoryByMap.set(activeMapId, []);
+  resetTransientDrawingState();
+}
+
+function onMapMouseDown(event) {
+  if (event?.originalEvent?.button !== undefined && event.originalEvent.button !== 0) {
+    return;
+  }
+
+  if (!event?.latlng) {
+    return;
+  }
+
+  if (drawingState.mode === DRAW_MODES.line) {
+    if (event?.originalEvent) {
+      event.originalEvent.preventDefault();
+      event.originalEvent.stopPropagation();
+    }
+
+    setDrawingInputLock(true);
+
+    if (map?.dragging?.enabled()) {
+      map.dragging.disable();
+    }
+
+    drawingState.isLineDrawing = true;
+    drawingState.lineDraftStart = [event.latlng.lat, event.latlng.lng];
+    clearLinePreview();
+    drawingState.isLineDrawing = true;
+    drawingState.lineDraftStart = [event.latlng.lat, event.latlng.lng];
+    drawingState.linePreviewLayer = L.polyline([
+      drawingState.lineDraftStart,
+      drawingState.lineDraftStart
+    ], {
+      color: '#ff3b3b',
+      weight: 3,
+      opacity: 0.65,
+      dashArray: '8,6'
+    }).addTo(map);
+    return;
+  }
+
+  if (drawingState.mode !== DRAW_MODES.freehand) {
+    return;
+  }
+
+  if (event?.originalEvent) {
+    event.originalEvent.preventDefault();
+    event.originalEvent.stopPropagation();
+  }
+
+  setDrawingInputLock(true);
+
+  drawingState.isFreehandDrawing = true;
+  drawingState.freehandPoints = [event.latlng];
+
+  if (drawingState.freehandPreviewLayer && map.hasLayer(drawingState.freehandPreviewLayer)) {
+    map.removeLayer(drawingState.freehandPreviewLayer);
+  }
+
+  drawingState.freehandPreviewLayer = L.polyline(drawingState.freehandPoints, {
+    color: '#ff3b3b',
+    weight: 3,
+    opacity: 0.95
+  }).addTo(map);
+
+  if (map?.dragging?.enabled()) {
+    map.dragging.disable();
+  }
+}
+
+function onMapMouseMove(event) {
+  if (!event?.latlng) {
+    return;
+  }
+
+  if (drawingState.mode === DRAW_MODES.line && drawingState.isLineDrawing && drawingState.linePreviewLayer && drawingState.lineDraftStart) {
+    drawingState.linePreviewLayer.setLatLngs([
+      drawingState.lineDraftStart,
+      [event.latlng.lat, event.latlng.lng]
+    ]);
+    return;
+  }
+
+  if (drawingState.mode !== DRAW_MODES.freehand || !drawingState.isFreehandDrawing) {
+    return;
+  }
+
+  drawingState.freehandPoints.push(event.latlng);
+  if (drawingState.freehandPreviewLayer) {
+    drawingState.freehandPreviewLayer.setLatLngs(drawingState.freehandPoints);
+  }
+}
+
+function onMapMouseUp(event) {
+  if (drawingState.mode === DRAW_MODES.line) {
+    if (!drawingState.isLineDrawing || !drawingState.lineDraftStart) {
+      return;
+    }
+
+    const start = drawingState.lineDraftStart;
+    const end = event?.latlng ? [event.latlng.lat, event.latlng.lng] : start;
+    const hasDistance = getDistanceBetweenCoordinates(start, end) > 0;
+
+    clearLinePreview();
+    setDrawingInputLock(false);
+    syncMapDraggingWithDrawMode();
+
+    if (hasDistance) {
+      const line = createDistanceLine(start, end);
+      addDrawLayerToHistory(line);
+    }
+    return;
+  }
+
+  if (drawingState.mode !== DRAW_MODES.freehand || !drawingState.isFreehandDrawing) {
+    return;
+  }
+
+  drawingState.isFreehandDrawing = false;
+  if (drawingState.freehandPoints.length > 1) {
+    const line = L.polyline(drawingState.freehandPoints, {
+      color: '#ff3b3b',
+      weight: 3,
+      opacity: 0.95
+    });
+    addDrawLayerToHistory(line);
+  }
+
+  if (drawingState.freehandPreviewLayer && map.hasLayer(drawingState.freehandPreviewLayer)) {
+    map.removeLayer(drawingState.freehandPreviewLayer);
+  }
+  drawingState.freehandPreviewLayer = null;
+  drawingState.freehandPoints = [];
+  setDrawingInputLock(false);
+
+  syncMapDraggingWithDrawMode();
+}
+
+function onGlobalPointerUpForDraw() {
+  if (!drawingState.isFreehandDrawing && !drawingState.isLineDrawing) {
+    setDrawingInputLock(false);
+    return;
+  }
+
+  stopActiveDrawingSession();
+}
+
+function onMapClickForDraw(event) {
+  if (!event?.latlng || !activeMapId) {
+    return;
+  }
+
+  const point = [event.latlng.lat, event.latlng.lng];
+
+  if (drawingState.mode === DRAW_MODES.erase) {
+    eraseNearestDrawing(event.latlng);
+    return;
+  }
+
+  if (drawingState.mode === DRAW_MODES.circle) {
+    const circlePolygon = createCirclePolygon(point, 150);
+    addDrawLayerToHistory(circlePolygon);
+  }
+}
+
+function bindDrawingTools() {
+  map.on('mousedown', onMapMouseDown);
+  map.on('mousemove', onMapMouseMove);
+  map.on('mouseup', onMapMouseUp);
+  map.on('mouseout', onMapMouseUp);
+  map.on('click', onMapClickForDraw);
+
+  if (!drawingGlobalListenersBound) {
+    globalThis.addEventListener('mouseup', onGlobalPointerUpForDraw);
+    globalThis.addEventListener('blur', onGlobalPointerUpForDraw);
+    drawingGlobalListenersBound = true;
+  }
+
+  const drawFreehandBtn = document.getElementById('drawFreehandBtn');
+  const drawMeasureLineBtn = document.getElementById('drawMeasureLineBtn');
+  const drawCircle150Btn = document.getElementById('drawCircle150Btn');
+  const drawEraseBtn = document.getElementById('drawEraseBtn');
+  const drawUndoBtn = document.getElementById('drawUndoBtn');
+  const drawClearBtn = document.getElementById('drawClearBtn');
+
+  if (drawFreehandBtn) {
+    drawFreehandBtn.addEventListener('click', () => {
+      setDrawingMode(DRAW_MODES.freehand);
+    });
+  }
+
+  if (drawMeasureLineBtn) {
+    drawMeasureLineBtn.addEventListener('click', () => {
+      setDrawingMode(DRAW_MODES.line);
+    });
+  }
+
+  if (drawCircle150Btn) {
+    drawCircle150Btn.addEventListener('click', () => {
+      setDrawingMode(DRAW_MODES.circle);
+    });
+  }
+
+  if (drawEraseBtn) {
+    drawEraseBtn.addEventListener('click', () => {
+      setDrawingMode(DRAW_MODES.erase);
+    });
+  }
+
+  if (drawUndoBtn) {
+    drawUndoBtn.addEventListener('click', () => {
+      undoLastDrawing();
+    });
+  }
+
+  if (drawClearBtn) {
+    drawClearBtn.addEventListener('click', () => {
+      clearAllDrawings();
+    });
+  }
+
+  updateDrawModeButtons();
+  updateMapDrawCursor();
+  updateMapInteractionLockForDraw();
+  syncMapDraggingWithDrawMode();
+}
+
+function attachCurrentMapDrawings() {
+  if (!activeMapId) {
+    return;
+  }
+
+  const layer = getDrawingsLayer(activeMapId);
+  if (!map.hasLayer(layer)) {
+    layer.addTo(map);
+  }
 }
 
 function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, poi) {
@@ -430,6 +1053,14 @@ function updateTypeVisibility(type, visible) {
 
 function clearMapLayers() {
   globalThis.resizeMapHandler && globalThis.removeEventListener('resize', globalThis.resizeMapHandler);
+
+  resetTransientDrawingState();
+
+  drawingsLayerByMap.forEach((layer) => {
+    if (map.hasLayer(layer)) {
+      map.removeLayer(layer);
+    }
+  });
   
   Object.values(markerLayersByType).forEach((layer) => {
     if (map.hasLayer(layer)) {
@@ -618,6 +1249,7 @@ async function renderMapData() {
   await renderOverlay(mapConfig);
   renderPOIs(mapConfig);
   renderCompoundLabels(mapConfig);
+  attachCurrentMapDrawings();
 }
 
 function bindUI() {
@@ -706,8 +1338,8 @@ function createFitMapControl() {
       const button = L.DomUtil.create('a', 'leaflet-control-fit-map', container);
       button.href = '#';
       button.title = getUIText('fitMap');
-      button.style.width = '42px';
-      button.style.height = '42px';
+      button.style.width = '38px';
+      button.style.height = '38px';
       button.style.display = 'flex';
       button.style.alignItems = 'center';
       button.style.justifyContent = 'center';
@@ -766,6 +1398,7 @@ function init() {
       createMapButtons();
       buildLegend();
       bindUI();
+      bindDrawingTools();
       applyStaticTranslations();
       renderMapData();
     })

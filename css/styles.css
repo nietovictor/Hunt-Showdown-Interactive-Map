@@ -20,6 +20,12 @@ body {
   color: var(--text);
 }
 
+body.drawing-input-lock,
+body.drawing-input-lock * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 main {
   height: 100%;
 }
@@ -78,16 +84,28 @@ main {
   text-decoration: none;
 }
 
-.top-bar {
+.map-controls-column {
   position: fixed;
   top: 50%;
   right: 10px;
+  transform: translateY(-50%);
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.top-bar {
+  position: fixed;
+  top: 50%;
+  left: 10px;
   transform: translateY(-50%);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .top-bar .btn {
@@ -103,6 +121,25 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.draw-controls {
+  position: static;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 220px;
+  pointer-events: auto;
+}
+
+.draw-controls .btn {
+  text-align: center;
+}
+
+.draw-controls .btn.active {
+  background: #9e2121;
+  border-color: #c83737;
 }
 
 .language-label {
@@ -202,12 +239,53 @@ main {
   background: #0f1726;
 }
 
+.draw-distance-tooltip {
+  background: rgba(9, 13, 20, 0.92);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-weight: 700;
+}
+
+.draw-distance-tooltip::before {
+  border-top-color: rgba(9, 13, 20, 0.92);
+}
+
+.leaflet-container.drawing-active {
+  cursor: crosshair;
+}
+
+.leaflet-container .leaflet-image-layer {
+  -webkit-user-drag: none;
+}
+
+.leaflet-container.drawing-lock-overlays .leaflet-map-pane,
+.leaflet-container.drawing-lock-overlays .leaflet-overlay-pane,
+.leaflet-container.drawing-lock-overlays .leaflet-marker-pane,
+.leaflet-container.drawing-lock-overlays .leaflet-tooltip-pane {
+  pointer-events: none;
+}
+
+.leaflet-container.drawing-lock-overlays .compound-label {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 @media (max-width: 768px) {
-  .top-bar {
-    top: 50%;
+  .map-controls-column {
     right: 8px;
+    top: 50%;
     transform: translateY(-50%);
-    align-items: flex-end;
+  }
+
+  .draw-controls {
+    width: 170px;
+  }
+
+  .top-bar {
+    left: 8px;
+    align-items: flex-start;
   }
 
   .legend {
