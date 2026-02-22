@@ -8,19 +8,24 @@ Track your progress during matches with this interactive map tool.
 - **Click to mark POIs**: Click any marker to grey it out when you've cleared it
 - **Spawn selection**: Click your spawn point to:
   - Highlight your spawn location 
-  - Show only the 4 closest spawn points
+  - Show only the 6 closest spawn points
 - **Match reset**: Clear all progress when starting a new match
 - **Compound Names**: Toggle location names on/off
 - **POI filters**: Show/hide different marker types (workbenches, towers, spawns, etc.)
 - **Language**: Switch between Spanish and English
 - **Auto-Fit**: Map automatically fits your screen resolution
 - **Fit button**: Manually re-adjust map to screen with one click
-- **Persistent settings**: Your preferences are saved automatically
+- **Drawing tools**:
+  - Freehand drawing
+  - Measure line with distance label 
+  - Place 150m radius circumference to show Darksight range
+  - Eraser tool
+  - Undo last drawing and clear all drawings
 
 ## How to Use
 
 ### Running the Map
-**Run localy**
+**Run locally**
 1. Open terminal in the project folder
 2. Run: `python -m http.server 8080`
 3. Open browser: `http://localhost:8080`
@@ -30,10 +35,12 @@ Track your progress during matches with this interactive map tool.
 
 ### During a Match
 
-1. **Select your map** using the buttons at the top
-2. **Click your spawn point** - it will turn white and show nearby spawns
-3. **Click markers** as you clear areas - they turn grey
-4. **Start new match**: Click "Reset markers" button to clear everything
+1. **Select your map** using the buttons at the left
+2. **Click your spawn point** - it will turn white and show the 6 nearest spawns
+3. **Click the same spawn again** to restore all spawn markers
+4. **Click markers** as you clear areas - they turn grey
+5. **Use drawing tools** for planning routes, ranges, and rotations
+6. **Start new match**: Click "Reset match" button to clear markers and active spawn selection
 
 ### Controls
 
@@ -41,6 +48,12 @@ Track your progress during matches with this interactive map tool.
 - **Fit map**: Click the square icon to fit map to your screen
 - **Legend**: Toggle sidebar to filter marker types
 - **Language**: Switch between EN/ES in top-right corner
+- **Drawing**:
+  - **Freehand**: Draw custom paths in red
+  - **Line**: Draw straight line and see distance in meters
+  - **Circle 150m**: Place a 150m radius circle
+  - **Eraser**: Click near a drawing to remove it
+  - **Undo/Clear**: Remove the last drawing or clean all drawings on current map
 
 ## Customization
 
