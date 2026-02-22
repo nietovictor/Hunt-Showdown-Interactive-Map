@@ -41,6 +41,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_VISIBLE_TYPES = new Set(['spawn', 'tower', 'big_tower', 'workbench']);
+const CLOSEST_SPAWN_COUNT = 6;
 
 function getUIText(key) {
   if (typeof getUITextTranslation === 'function') {
@@ -763,6 +764,8 @@ function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, p
   const spawnLayer = markerLayersByType.spawn;
   if (!spawnLayer) return;
 
+  const mapSpawnMarkers = allSpawnMarkersByMap.get(mapId) || [];
+
   const previousSelection = selectedSpawnByMap.get(mapId);
   if (previousSelection && previousSelection.poiId === selectedPoiId) {
     selectedSpawnByMap.delete(mapId);
@@ -772,7 +775,7 @@ function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, p
       map.removeLayer(textMarker);
       spawnTextMarkerByMap.delete(mapId);
     }
-    spawnLayer.eachLayer((marker) => {
+    mapSpawnMarkers.forEach((marker) => {
       if (marker === selectedMarker) return;
       if (marker?.poiState?.mapId === mapId) {
         applyPoiVisualState(marker, marker.poiState.baseStyle, false);
@@ -785,7 +788,7 @@ function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, p
   }
 
   const allSpawns = [];
-  spawnLayer.eachLayer((marker) => {
+  mapSpawnMarkers.forEach((marker) => {
     if (marker?.poiState?.mapId === mapId) {
       const coords = marker.getLatLng();
       allSpawns.push({
@@ -804,7 +807,7 @@ function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, p
       distance: getDistanceBetweenCoordinates(poi.coordinates, s.coords)
     }))
     .sort((a, b) => a.distance - b.distance)
-    .slice(0, 4);
+    .slice(0, CLOSEST_SPAWN_COUNT);
 
   selectedSpawnByMap.set(mapId, {
     poiId: selectedPoiId,
@@ -837,7 +840,7 @@ function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, p
   textMarker.addTo(map);
   spawnTextMarkerByMap.set(mapId, textMarker);
 
-  spawnLayer.eachLayer((marker) => {
+  mapSpawnMarkers.forEach((marker) => {
     if (marker === selectedMarker) return;
     if (marker?.poiState?.mapId !== mapId) return;
 
