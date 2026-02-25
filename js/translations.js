@@ -24,6 +24,8 @@ const TRANSLATIONS = {
     leaveSession: { es: 'Salir', en: 'Leave' },
     noSession: { es: 'Sin sesión', en: 'No session' },
     sessionPrefix: { es: 'Sesión', en: 'Session' },
+    participantSingle: { es: 'participante', en: 'participant' },
+    participantPlural: { es: 'participantes', en: 'participants' },
     invalidSessionId: { es: 'ID inválida', en: 'Invalid ID' },
     coopUnavailable: { es: 'Coop no disponible', en: 'Co-op unavailable' }
   },
