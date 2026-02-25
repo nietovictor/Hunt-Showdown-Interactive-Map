@@ -26,6 +26,7 @@ const drawingState = {
 
 const COOP_PEER_PREFIX = 'hunt1896';
 const COOP_ERASE_THRESHOLD_PX = 14;
+const COOP_DEVICE_COLORS = ['#ff3b3b', '#4da3ff', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#f1c40f', '#e67e22'];
 const coopState = {
   peer: null,
   mode: null,
@@ -33,6 +34,8 @@ const coopState = {
   peerConnections: new Map(),
   roomId: null,
   peerId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  participantCount: 1,
+  connectionState: '',
   seenOpIds: new Set(),
   isApplyingRemote: false
 };
@@ -82,6 +85,57 @@ function setSessionStatus(text) {
   if (status) {
     status.textContent = text;
   }
+}
+
+function getDeviceColor(peerId) {
+  const safePeerId = typeof peerId === 'string' ? peerId : '';
+  let hash = 0;
+  for (let index = 0; index < safePeerId.length; index += 1) {
+    hash = ((hash << 5) - hash) + safePeerId.charCodeAt(index);
+    hash |= 0;
+  }
+
+  const paletteIndex = Math.abs(hash) % COOP_DEVICE_COLORS.length;
+  return COOP_DEVICE_COLORS[paletteIndex];
+}
+
+function getLocalDeviceColor() {
+  return getDeviceColor(coopState.peerId);
+}
+
+function getHostParticipantCount() {
+  return 1 + coopState.peerConnections.size;
+}
+
+function getCurrentParticipantCount() {
+  if (!coopState.roomId) {
+    return 0;
+  }
+
+  if (coopState.mode === 'host') {
+    return getHostParticipantCount();
+  }
+
+  return Math.max(1, coopState.participantCount || 1);
+}
+
+function getParticipantLabel(count) {
+  const key = count === 1 ? 'participantSingle' : 'participantPlural';
+  return `${count} ${getUIText(key)}`;
+}
+
+function renderSessionStatus() {
+  if (!coopState.roomId) {
+    setSessionStatus(getCurrentSessionLabel());
+    return;
+  }
+
+  const statusParts = [getCurrentSessionLabel()];
+  if (coopState.connectionState) {
+    statusParts.push(coopState.connectionState);
+  }
+  statusParts.push(getParticipantLabel(getCurrentParticipantCount()));
+  setSessionStatus(statusParts.join(' · '));
 }
 
 function getCurrentSessionLabel() {
@@ -186,7 +240,7 @@ function applyStaticTranslations() {
     leaveSessionBtn.textContent = getUIText('leaveSession');
   }
 
-  setSessionStatus(getCurrentSessionLabel());
+  renderSessionStatus();
 }
 
 function getSavedLanguage() {
@@ -462,8 +516,9 @@ function formatDistanceMeters(meters) {
 }
 
 function createDistanceLine(start, end) {
+  const lineColor = getLocalDeviceColor();
   const line = L.polyline([start, end], {
-    color: '#ff3b3b',
+    color: lineColor,
     weight: 3,
     opacity: 0.95
   });
@@ -482,6 +537,7 @@ function createDistanceLine(start, end) {
 }
 
 function createCirclePolygon(center, radiusMeters) {
+  const lineColor = getLocalDeviceColor();
   const metersPerMapUnit = getMetersPerMapUnit();
   const radiusUnits = radiusMeters / metersPerMapUnit;
   const points = [];
@@ -495,9 +551,9 @@ function createCirclePolygon(center, radiusMeters) {
   }
 
   return L.polygon(points, {
-    color: '#ff3b3b',
+    color: lineColor,
     weight: 2,
-    fillColor: '#ff3b3b',
+    fillColor: lineColor,
     fillOpacity: 0.08
   });
 }
@@ -658,7 +714,7 @@ function onMapMouseDown(event) {
       drawingState.lineDraftStart,
       drawingState.lineDraftStart
     ], {
-      color: '#ff3b3b',
+      color: getLocalDeviceColor(),
       weight: 3,
       opacity: 0.65,
       dashArray: '8,6'
@@ -685,7 +741,7 @@ function onMapMouseDown(event) {
   }
 
   drawingState.freehandPreviewLayer = L.polyline(drawingState.freehandPoints, {
-    color: '#ff3b3b',
+    color: getLocalDeviceColor(),
     weight: 3,
     opacity: 0.95
   }).addTo(map);
@@ -754,7 +810,7 @@ function onMapMouseUp(event) {
   drawingState.isFreehandDrawing = false;
   if (drawingState.freehandPoints.length > 1) {
     const line = L.polyline(drawingState.freehandPoints, {
-      color: '#ff3b3b',
+      color: getLocalDeviceColor(),
       weight: 3,
       opacity: 0.95
     });
@@ -968,6 +1024,8 @@ function bindConnectionHandlers(connection) {
 
     if (coopState.mode === 'host') {
       coopState.peerConnections.set(connection.peer, connection);
+      coopState.participantCount = getHostParticipantCount();
+      renderSessionStatus();
 
       if (activeMapId) {
         const syncOperation = {
@@ -979,12 +1037,27 @@ function bindConnectionHandlers(connection) {
         };
         sendOperationToConnection(connection, syncOperation);
       }
+
+      broadcastParticipantCount();
     }
   });
 
   connection.on('data', (rawData) => {
     const message = parseIncomingMessage(rawData);
-    if (!message?.op) {
+    if (!message) {
+      return;
+    }
+
+    if (message.type === 'participants' && coopState.mode === 'client') {
+      const parsedCount = Number.parseInt(message.count, 10);
+      if (Number.isFinite(parsedCount) && parsedCount > 0) {
+        coopState.participantCount = parsedCount;
+        renderSessionStatus();
+      }
+      return;
+    }
+
+    if (!message.op) {
       return;
     }
 
@@ -999,9 +1072,37 @@ function bindConnectionHandlers(connection) {
       coopState.peerConnections.delete(connection.peer);
     }
 
-    if (coopState.mode === 'client' && connection === coopState.hostConnection) {
-      setSessionStatus(`${getCurrentSessionLabel()} · offline`);
+    if (coopState.mode === 'host') {
+      coopState.participantCount = getHostParticipantCount();
+      renderSessionStatus();
+      broadcastParticipantCount();
     }
+
+    if (coopState.mode === 'client' && connection === coopState.hostConnection) {
+      coopState.connectionState = 'offline';
+      renderSessionStatus();
+    }
+  });
+}
+
+function sendParticipantCountToConnection(connection) {
+  if (!connection?.open || coopState.mode !== 'host') {
+    return;
+  }
+
+  connection.send(JSON.stringify({
+    type: 'participants',
+    count: getHostParticipantCount()
+  }));
+}
+
+function broadcastParticipantCount() {
+  if (coopState.mode !== 'host') {
+    return;
+  }
+
+  coopState.peerConnections.forEach((connection) => {
+    sendParticipantCountToConnection(connection);
   });
 }
 
@@ -1257,8 +1358,10 @@ function leaveCoopSession() {
   coopState.peer = null;
   coopState.mode = null;
   coopState.roomId = null;
+  coopState.connectionState = '';
+  coopState.participantCount = 1;
   coopState.seenOpIds.clear();
-  setSessionStatus(getCurrentSessionLabel());
+  renderSessionStatus();
 }
 
 function joinCoopSession(roomId, options = {}) {
@@ -1278,6 +1381,8 @@ function joinCoopSession(roomId, options = {}) {
 
   const hostPeerId = getHostPeerId(cleanRoomId);
   coopState.roomId = cleanRoomId;
+  coopState.connectionState = 'conectando...';
+  coopState.participantCount = 1;
 
   if (preferHost) {
     coopState.mode = 'host';
@@ -1287,7 +1392,7 @@ function joinCoopSession(roomId, options = {}) {
     coopState.peer = new globalThis.Peer();
   }
 
-  setSessionStatus(`${getCurrentSessionLabel()} · conectando...`);
+  renderSessionStatus();
 
   coopState.peer.on('open', () => {
     if (!coopState.peer || !coopState.roomId) {
@@ -1295,7 +1400,9 @@ function joinCoopSession(roomId, options = {}) {
     }
 
     if (coopState.mode === 'host') {
-      setSessionStatus(`${getCurrentSessionLabel()} · online`);
+      coopState.connectionState = 'online';
+      coopState.participantCount = getHostParticipantCount();
+      renderSessionStatus();
       return;
     }
 
@@ -1303,7 +1410,8 @@ function joinCoopSession(roomId, options = {}) {
     coopState.hostConnection = connection;
     bindConnectionHandlers(connection);
     connection.on('open', () => {
-      setSessionStatus(`${getCurrentSessionLabel()} · online`);
+      coopState.connectionState = 'online';
+      renderSessionStatus();
       if (activeMapId) {
         emitCoopOperation('map-change', { mapId: activeMapId });
       }
@@ -1324,12 +1432,14 @@ function joinCoopSession(roomId, options = {}) {
       return;
     }
 
-    setSessionStatus(`${getCurrentSessionLabel()} · error`);
+    coopState.connectionState = 'error';
+    renderSessionStatus();
   });
 
   coopState.peer.on('disconnected', () => {
     if (coopState.roomId) {
-      setSessionStatus(`${getCurrentSessionLabel()} · offline`);
+      coopState.connectionState = 'offline';
+      renderSessionStatus();
     }
   });
 }
