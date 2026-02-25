@@ -120,7 +120,41 @@ main {
   z-index: 1001;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+}
+
+.coop-controls {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(16, 23, 34, 0.92);
+}
+
+.session-id-input {
+  width: 110px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+
+.session-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  max-width: 210px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .draw-controls {

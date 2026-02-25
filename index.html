@@ -37,6 +37,13 @@
       <section id="topBar" class="top-bar"></section>
 
       <section class="controls-right">
+        <div class="coop-controls" aria-label="Sesión cooperativa">
+          <input id="sessionIdInput" class="session-id-input" type="text" placeholder="ID sesión" maxlength="24" />
+          <button id="createSessionBtn" class="btn btn-small" type="button">Crear</button>
+          <button id="joinSessionBtn" class="btn btn-small" type="button">Unirse</button>
+          <button id="leaveSessionBtn" class="btn btn-small" type="button">Salir</button>
+          <span id="sessionStatus" class="session-status">Sin sesión</span>
+        </div>
         <label id="languageLabel" for="languageSelect" class="language-label">Idioma</label>
         <select id="languageSelect" class="lang-select" aria-label="Seleccionar idioma">
           <option value="es">ES</option>
@@ -68,6 +75,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="js/translations.js"></script>
     <script src="js/data.js"></script>
     <script src="js/app.js"></script>

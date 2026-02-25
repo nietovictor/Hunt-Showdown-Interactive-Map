@@ -21,6 +21,10 @@ Track your progress during matches with this interactive map tool.
   - Place 150m radius circumference to show Darksight range
   - Eraser tool
   - Undo last drawing and clear all drawings
+- **Co-op sessions by ID**:
+  - Create a session ID and share it
+  - Other players join with that ID
+  - Sync POI marks, spawn selection, reset markers, map switch, and drawings in real time
 
 ## How to Use
 
@@ -33,6 +37,13 @@ Track your progress during matches with this interactive map tool.
 **Deployed in GitHub pages**<br>
 [Hunt Showdown map in GitHub pages](https://nietovictor.github.io/Hunt-Showdown-Interactive-Map/)
 
+### Co-op on GitHub Pages (recommended)
+
+1. One player clicks **Create** (becomes host of the session ID)
+2. Share that ID with teammates
+3. Others open the same GitHub Pages URL, paste ID, click **Join**
+4. POIs, spawn selection, map changes and drawings sync automatically in real time
+
 ### During a Match
 
 1. **Select your map** using the buttons at the left
@@ -41,6 +52,11 @@ Track your progress during matches with this interactive map tool.
 4. **Click markers** as you clear areas - they turn grey
 5. **Use drawing tools** for planning routes, ranges, and rotations
 6. **Start new match**: Click "Reset match" button to clear markers and active spawn selection
+7. **Play in co-op**:
+  - Click **Create** to generate a session ID
+  - Share the ID with your team
+  - Teammates paste the ID and click **Join**
+  - Use **Leave** to stop syncing
 
 ### Controls
 

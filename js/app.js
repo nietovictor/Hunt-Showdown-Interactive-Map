@@ -24,6 +24,19 @@ const drawingState = {
   linePreviewLayer: null
 };
 
+const COOP_PEER_PREFIX = 'hunt1896';
+const COOP_ERASE_THRESHOLD_PX = 14;
+const coopState = {
+  peer: null,
+  mode: null,
+  hostConnection: null,
+  peerConnections: new Map(),
+  roomId: null,
+  peerId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  seenOpIds: new Set(),
+  isApplyingRemote: false
+};
+
 const DRAW_MODES = {
   none: 'none',
   freehand: 'freehand',
@@ -42,6 +55,40 @@ const STORAGE_KEYS = {
 
 const DEFAULT_VISIBLE_TYPES = new Set(['spawn', 'tower', 'big_tower', 'workbench']);
 const CLOSEST_SPAWN_COUNT = 6;
+
+function sanitizeSessionId(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value.trim().toUpperCase().replaceAll(/[^A-Z0-9_-]/g, '').slice(0, 24);
+}
+
+function generateSessionId(length = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let output = '';
+  for (let index = 0; index < length; index += 1) {
+    output += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+  }
+  return output;
+}
+
+function getSessionStatusElement() {
+  return document.getElementById('sessionStatus');
+}
+
+function setSessionStatus(text) {
+  const status = getSessionStatusElement();
+  if (status) {
+    status.textContent = text;
+  }
+}
+
+function getCurrentSessionLabel() {
+  return coopState.roomId
+    ? `${getUIText('sessionPrefix')}: ${coopState.roomId}`
+    : getUIText('noSession');
+}
 
 function getUIText(key) {
   if (typeof getUITextTranslation === 'function') {
@@ -118,6 +165,28 @@ function applyStaticTranslations() {
   if (drawClearBtn) {
     drawClearBtn.textContent = getUIText('drawClear');
   }
+
+  const sessionIdInput = document.getElementById('sessionIdInput');
+  if (sessionIdInput) {
+    sessionIdInput.placeholder = getUIText('sessionIdPlaceholder');
+  }
+
+  const createSessionBtn = document.getElementById('createSessionBtn');
+  if (createSessionBtn) {
+    createSessionBtn.textContent = getUIText('createSession');
+  }
+
+  const joinSessionBtn = document.getElementById('joinSessionBtn');
+  if (joinSessionBtn) {
+    joinSessionBtn.textContent = getUIText('joinSession');
+  }
+
+  const leaveSessionBtn = document.getElementById('leaveSessionBtn');
+  if (leaveSessionBtn) {
+    leaveSessionBtn.textContent = getUIText('leaveSession');
+  }
+
+  setSessionStatus(getCurrentSessionLabel());
 }
 
 function getSavedLanguage() {
@@ -213,13 +282,45 @@ function getDrawingsLayer(mapId) {
   return drawingsLayerByMap.get(mapId);
 }
 
-function addDrawLayerToHistory(layer) {
-  if (!activeMapId || !layer) {
-    return;
+function createOpId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}-${coopState.peerId}`;
+}
+
+function addDrawLayerToHistory(layer, options = {}) {
+  const mapId = options.mapId || activeMapId;
+  if (!mapId || !layer) {
+    return null;
   }
 
-  getDrawingsLayer(activeMapId).addLayer(layer);
-  getDrawingHistory(activeMapId).push(layer);
+  const drawId = options.drawId || createOpId();
+  layer.__drawId = drawId;
+
+  getDrawingsLayer(mapId).addLayer(layer);
+  getDrawingHistory(mapId).push(layer);
+  return drawId;
+}
+
+function removeDrawingById(mapId, drawId) {
+  if (!mapId || !drawId) {
+    return false;
+  }
+
+  const drawLayer = getDrawingsLayer(mapId);
+  let targetLayer = null;
+
+  drawLayer.eachLayer((layer) => {
+    if (!targetLayer && layer.__drawId === drawId) {
+      targetLayer = layer;
+    }
+  });
+
+  if (!targetLayer) {
+    return false;
+  }
+
+  drawLayer.removeLayer(targetLayer);
+  removeLayerFromHistory(mapId, targetLayer);
+  return true;
 }
 
 function clearLinePreview() {
@@ -471,11 +572,10 @@ function removeLayerFromHistory(mapId, layerToRemove) {
 
 function eraseNearestDrawing(clickLatLng) {
   if (!activeMapId) {
-    return;
+    return null;
   }
 
   const drawLayer = getDrawingsLayer(activeMapId);
-  const ERASE_THRESHOLD_PX = 14;
   let nearestLayer = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
 
@@ -491,38 +591,41 @@ function eraseNearestDrawing(clickLatLng) {
     }
   });
 
-  if (!nearestLayer || nearestDistance > ERASE_THRESHOLD_PX) {
-    return;
+  if (!nearestLayer || nearestDistance > COOP_ERASE_THRESHOLD_PX) {
+    return null;
   }
 
   drawLayer.removeLayer(nearestLayer);
   removeLayerFromHistory(activeMapId, nearestLayer);
+  return nearestLayer.__drawId || null;
 }
 
 function undoLastDrawing() {
   if (!activeMapId) {
-    return;
+    return null;
   }
 
   const history = getDrawingHistory(activeMapId);
   const layer = history.pop();
   if (!layer) {
-    return;
+    return null;
   }
 
   const drawLayer = getDrawingsLayer(activeMapId);
   drawLayer.removeLayer(layer);
+  return layer.__drawId || null;
 }
 
 function clearAllDrawings() {
   if (!activeMapId) {
-    return;
+    return false;
   }
 
   const drawLayer = getDrawingsLayer(activeMapId);
   drawLayer.clearLayers();
   drawingHistoryByMap.set(activeMapId, []);
   resetTransientDrawingState();
+  return true;
 }
 
 function onMapMouseDown(event) {
@@ -631,7 +734,15 @@ function onMapMouseUp(event) {
 
     if (hasDistance) {
       const line = createDistanceLine(start, end);
-      addDrawLayerToHistory(line);
+      const drawId = addDrawLayerToHistory(line);
+      const shape = serializeLayerForPayload(line);
+      if (drawId && shape) {
+        emitCoopOperation('draw-add', {
+          mapId: activeMapId,
+          drawId,
+          shape
+        });
+      }
     }
     return;
   }
@@ -647,7 +758,15 @@ function onMapMouseUp(event) {
       weight: 3,
       opacity: 0.95
     });
-    addDrawLayerToHistory(line);
+    const drawId = addDrawLayerToHistory(line);
+    const shape = serializeLayerForPayload(line);
+    if (drawId && shape) {
+      emitCoopOperation('draw-add', {
+        mapId: activeMapId,
+        drawId,
+        shape
+      });
+    }
   }
 
   if (drawingState.freehandPreviewLayer && map.hasLayer(drawingState.freehandPreviewLayer)) {
@@ -677,13 +796,27 @@ function onMapClickForDraw(event) {
   const point = [event.latlng.lat, event.latlng.lng];
 
   if (drawingState.mode === DRAW_MODES.erase) {
-    eraseNearestDrawing(event.latlng);
+    const removedDrawId = eraseNearestDrawing(event.latlng);
+    if (removedDrawId) {
+      emitCoopOperation('draw-remove', {
+        mapId: activeMapId,
+        drawId: removedDrawId
+      });
+    }
     return;
   }
 
   if (drawingState.mode === DRAW_MODES.circle) {
     const circlePolygon = createCirclePolygon(point, 150);
-    addDrawLayerToHistory(circlePolygon);
+    const drawId = addDrawLayerToHistory(circlePolygon);
+    const shape = serializeLayerForPayload(circlePolygon);
+    if (drawId && shape) {
+      emitCoopOperation('draw-add', {
+        mapId: activeMapId,
+        drawId,
+        shape
+      });
+    }
   }
 }
 
@@ -733,13 +866,22 @@ function bindDrawingTools() {
 
   if (drawUndoBtn) {
     drawUndoBtn.addEventListener('click', () => {
-      undoLastDrawing();
+      const removedDrawId = undoLastDrawing();
+      if (removedDrawId) {
+        emitCoopOperation('draw-remove', {
+          mapId: activeMapId,
+          drawId: removedDrawId
+        });
+      }
     });
   }
 
   if (drawClearBtn) {
     drawClearBtn.addEventListener('click', () => {
-      clearAllDrawings();
+      const wasCleared = clearAllDrawings();
+      if (wasCleared) {
+        emitCoopOperation('draw-clear', { mapId: activeMapId });
+      }
     });
   }
 
@@ -758,6 +900,438 @@ function attachCurrentMapDrawings() {
   if (!map.hasLayer(layer)) {
     layer.addTo(map);
   }
+}
+
+function canUsePeerJs() {
+  return typeof globalThis.Peer === 'function';
+}
+
+function getHostPeerId(roomId) {
+  return `${COOP_PEER_PREFIX}-${roomId.toLowerCase()}`;
+}
+
+function parseIncomingMessage(rawData) {
+  if (typeof rawData !== 'string') {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawData);
+  } catch {
+    return null;
+  }
+}
+
+function handleIncomingCoopOperation(op) {
+  if (!op?.id || !op?.type) {
+    return false;
+  }
+
+  if (op.by === coopState.peerId || coopState.seenOpIds.has(op.id)) {
+    return false;
+  }
+
+  coopState.seenOpIds.add(op.id);
+  applyCoopOperation(op);
+  return true;
+}
+
+function sendOperationToConnection(connection, op) {
+  if (!connection?.open) {
+    return;
+  }
+
+  connection.send(JSON.stringify({
+    type: 'op',
+    op
+  }));
+}
+
+function broadcastOperation(op, excludedPeerId = null) {
+  coopState.peerConnections.forEach((connection, peerId) => {
+    if (peerId === excludedPeerId) {
+      return;
+    }
+    sendOperationToConnection(connection, op);
+  });
+}
+
+function bindConnectionHandlers(connection) {
+  if (!connection) {
+    return;
+  }
+
+  connection.on('open', () => {
+    if (!connection.peer) {
+      return;
+    }
+
+    if (coopState.mode === 'host') {
+      coopState.peerConnections.set(connection.peer, connection);
+
+      if (activeMapId) {
+        const syncOperation = {
+          id: createOpId(),
+          type: 'map-change',
+          payload: JSON.stringify({ mapId: activeMapId }),
+          by: coopState.peerId,
+          ts: Date.now()
+        };
+        sendOperationToConnection(connection, syncOperation);
+      }
+    }
+  });
+
+  connection.on('data', (rawData) => {
+    const message = parseIncomingMessage(rawData);
+    if (!message?.op) {
+      return;
+    }
+
+    const wasApplied = handleIncomingCoopOperation(message.op);
+    if (wasApplied && coopState.mode === 'host') {
+      broadcastOperation(message.op, connection.peer || null);
+    }
+  });
+
+  connection.on('close', () => {
+    if (connection.peer) {
+      coopState.peerConnections.delete(connection.peer);
+    }
+
+    if (coopState.mode === 'client' && connection === coopState.hostConnection) {
+      setSessionStatus(`${getCurrentSessionLabel()} · offline`);
+    }
+  });
+}
+
+function getPoiMarkerInfo(mapId, poiId) {
+  const mapMarkers = poiMarkersByMap.get(mapId);
+  if (!mapMarkers) {
+    return null;
+  }
+  return mapMarkers.get(poiId) || null;
+}
+
+function serializeLatLngs(latLngs) {
+  if (!Array.isArray(latLngs)) {
+    return [];
+  }
+
+  if (latLngs.length && Array.isArray(latLngs[0])) {
+    return latLngs.map((group) => serializeLatLngs(group));
+  }
+
+  return latLngs.map((point) => [point.lat, point.lng]);
+}
+
+function createLayerFromPayload(payload) {
+  if (!payload?.shape?.kind) {
+    return null;
+  }
+
+  const { shape } = payload;
+  const options = shape.options || {};
+  let layer = null;
+
+  if (shape.kind === 'polyline') {
+    layer = L.polyline(shape.latLngs || [], options);
+  } else if (shape.kind === 'polygon') {
+    layer = L.polygon(shape.latLngs || [], options);
+  }
+
+  if (!layer) {
+    return null;
+  }
+
+  if (shape.tooltipText) {
+    layer.bindTooltip(shape.tooltipText, {
+      permanent: true,
+      className: 'draw-distance-tooltip',
+      direction: 'center',
+      interactive: false
+    });
+
+    const groups = getLatLngGroups(layer);
+    const firstGroup = groups[0];
+    if (Array.isArray(firstGroup) && firstGroup.length > 1) {
+      const lastPoint = firstGroup.at(-1);
+      layer.openTooltip(getMidPoint(
+        [firstGroup[0].lat, firstGroup[0].lng],
+        [lastPoint.lat, lastPoint.lng]
+      ));
+    }
+  }
+
+  return layer;
+}
+
+function serializeLayerForPayload(layer) {
+  if (!(layer instanceof L.Polyline || layer instanceof L.Polygon)) {
+    return null;
+  }
+
+  const isPolygon = layer instanceof L.Polygon;
+  const shape = {
+    kind: isPolygon ? 'polygon' : 'polyline',
+    latLngs: serializeLatLngs(layer.getLatLngs()),
+    options: {
+      color: layer.options?.color,
+      weight: layer.options?.weight,
+      opacity: layer.options?.opacity,
+      fillColor: layer.options?.fillColor,
+      fillOpacity: layer.options?.fillOpacity,
+      dashArray: layer.options?.dashArray
+    }
+  };
+
+  const tooltip = layer.getTooltip?.();
+  if (tooltip?.getContent) {
+    shape.tooltipText = tooltip.getContent();
+  }
+
+  return shape;
+}
+
+function emitCoopOperation(type, payload) {
+  if (!coopState.roomId || coopState.isApplyingRemote) {
+    return;
+  }
+
+  let payloadJson = '';
+  try {
+    payloadJson = JSON.stringify(payload);
+  } catch {
+    return;
+  }
+
+  const op = {
+    id: createOpId(),
+    type,
+    payload: payloadJson,
+    by: coopState.peerId,
+    ts: Date.now()
+  };
+
+  coopState.seenOpIds.add(op.id);
+
+  if (coopState.mode === 'host') {
+    broadcastOperation(op);
+  } else if (coopState.mode === 'client') {
+    sendOperationToConnection(coopState.hostConnection, op);
+  }
+}
+
+function applyRemoteMapChange(payload) {
+  if (!payload?.mapId || payload.mapId === activeMapId) {
+    return;
+  }
+
+  activeMapId = payload.mapId;
+  localStorage.setItem(STORAGE_KEYS.activeMap, activeMapId);
+  createMapButtons();
+  renderMapData();
+}
+
+function applyRemotePoiToggle(payload) {
+  if (!payload?.mapId || !payload?.poiId) {
+    return;
+  }
+
+  const completionSet = getMapCompletionSet(payload.mapId);
+  if (completionSet.has(payload.poiId)) {
+    completionSet.delete(payload.poiId);
+  } else {
+    completionSet.add(payload.poiId);
+  }
+
+  const markerInfo = getPoiMarkerInfo(payload.mapId, payload.poiId);
+  if (markerInfo) {
+    applyPoiVisualState(markerInfo.marker, markerInfo.baseStyle, completionSet.has(payload.poiId));
+  }
+}
+
+function applyRemoteSpawnToggle(payload) {
+  if (!payload?.mapId || !payload?.poiId) {
+    return;
+  }
+
+  const markerInfo = getPoiMarkerInfo(payload.mapId, payload.poiId);
+  if (markerInfo) {
+    handleSpawnSelection(payload.mapId, payload.poiId, markerInfo.marker, markerInfo.baseStyle, markerInfo.poi);
+  }
+}
+
+function applyRemoteResetMap(payload) {
+  if (!payload?.mapId) {
+    return;
+  }
+
+  if (payload.mapId === activeMapId) {
+    resetCurrentMapPoiState();
+    return;
+  }
+
+  completedPoisByMap.set(payload.mapId, new Set());
+  selectedSpawnByMap.delete(payload.mapId);
+}
+
+function applyRemoteDrawAdd(payload) {
+  if (!payload?.mapId || !payload?.drawId) {
+    return;
+  }
+
+  const layer = createLayerFromPayload(payload);
+  if (layer) {
+    addDrawLayerToHistory(layer, { mapId: payload.mapId, drawId: payload.drawId });
+  }
+}
+
+function applyRemoteDrawRemove(payload) {
+  removeDrawingById(payload?.mapId, payload?.drawId);
+}
+
+function applyRemoteDrawClear(payload) {
+  if (payload?.mapId === activeMapId) {
+    clearAllDrawings();
+  }
+}
+
+const coopOperationHandlers = {
+  'map-change': applyRemoteMapChange,
+  'poi-toggle': applyRemotePoiToggle,
+  'spawn-toggle': applyRemoteSpawnToggle,
+  'reset-map': applyRemoteResetMap,
+  'draw-add': applyRemoteDrawAdd,
+  'draw-remove': applyRemoteDrawRemove,
+  'draw-clear': applyRemoteDrawClear
+};
+
+function applyCoopOperation(op) {
+  if (!op?.type || !op?.payload) {
+    return;
+  }
+
+  let payload = op.payload;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      return;
+    }
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return;
+  }
+
+  const operationHandler = coopOperationHandlers[op.type];
+  if (!operationHandler) {
+    return;
+  }
+
+  coopState.isApplyingRemote = true;
+  try {
+    operationHandler(payload);
+  } finally {
+    coopState.isApplyingRemote = false;
+  }
+}
+
+function leaveCoopSession() {
+  if (coopState.hostConnection) {
+    coopState.hostConnection.close();
+  }
+
+  coopState.peerConnections.forEach((connection) => {
+    connection.close();
+  });
+
+  coopState.peerConnections.clear();
+  coopState.hostConnection = null;
+
+  if (coopState.peer) {
+    coopState.peer.destroy();
+  }
+
+  coopState.peer = null;
+  coopState.mode = null;
+  coopState.roomId = null;
+  coopState.seenOpIds.clear();
+  setSessionStatus(getCurrentSessionLabel());
+}
+
+function joinCoopSession(roomId, options = {}) {
+  const preferHost = Boolean(options.preferHost);
+  const cleanRoomId = sanitizeSessionId(roomId);
+  if (!cleanRoomId) {
+    setSessionStatus(getUIText('invalidSessionId'));
+    return;
+  }
+
+  if (!canUsePeerJs()) {
+    setSessionStatus(getUIText('coopUnavailable'));
+    return;
+  }
+
+  leaveCoopSession();
+
+  const hostPeerId = getHostPeerId(cleanRoomId);
+  coopState.roomId = cleanRoomId;
+
+  if (preferHost) {
+    coopState.mode = 'host';
+    coopState.peer = new globalThis.Peer(hostPeerId);
+  } else {
+    coopState.mode = 'client';
+    coopState.peer = new globalThis.Peer();
+  }
+
+  setSessionStatus(`${getCurrentSessionLabel()} · conectando...`);
+
+  coopState.peer.on('open', () => {
+    if (!coopState.peer || !coopState.roomId) {
+      return;
+    }
+
+    if (coopState.mode === 'host') {
+      setSessionStatus(`${getCurrentSessionLabel()} · online`);
+      return;
+    }
+
+    const connection = coopState.peer.connect(hostPeerId, { reliable: true });
+    coopState.hostConnection = connection;
+    bindConnectionHandlers(connection);
+    connection.on('open', () => {
+      setSessionStatus(`${getCurrentSessionLabel()} · online`);
+      if (activeMapId) {
+        emitCoopOperation('map-change', { mapId: activeMapId });
+      }
+    });
+  });
+
+  coopState.peer.on('connection', (connection) => {
+    if (coopState.mode !== 'host') {
+      return;
+    }
+    bindConnectionHandlers(connection);
+  });
+
+  coopState.peer.on('error', (error) => {
+    const isIdTaken = typeof error?.type === 'string' && error.type === 'unavailable-id';
+    if (isIdTaken && preferHost) {
+      joinCoopSession(cleanRoomId, { preferHost: false });
+      return;
+    }
+
+    setSessionStatus(`${getCurrentSessionLabel()} · error`);
+  });
+
+  coopState.peer.on('disconnected', () => {
+    if (coopState.roomId) {
+      setSessionStatus(`${getCurrentSessionLabel()} · offline`);
+    }
+  });
 }
 
 function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, poi) {
@@ -957,6 +1531,7 @@ function createMapButtons() {
       localStorage.setItem(STORAGE_KEYS.activeMap, activeMapId);
       createMapButtons();
       renderMapData();
+      emitCoopOperation('map-change', { mapId: activeMapId });
     });
     topBar.appendChild(button);
   });
@@ -1050,6 +1625,7 @@ function clearMapLayers() {
 
   if (activeMapId) {
     allSpawnMarkersByMap.delete(activeMapId);
+    poiMarkersByMap.delete(activeMapId);
   }
 
   if (compoundNamesLayer && map.hasLayer(compoundNamesLayer)) {
@@ -1118,6 +1694,10 @@ async function renderOverlay(mapConfig) {
 
 function renderPOIs(mapConfig) {
   const completionSet = getMapCompletionSet(mapConfig.id);
+  if (!poiMarkersByMap.has(mapConfig.id)) {
+    poiMarkersByMap.set(mapConfig.id, new Map());
+  }
+  const markerIndex = poiMarkersByMap.get(mapConfig.id);
 
   mapConfig.pois.forEach((poi, index) => {
     const style = POI_TYPES[poi.type];
@@ -1156,6 +1736,12 @@ function renderPOIs(mapConfig) {
       baseStyle
     };
 
+    markerIndex.set(poiId, {
+      marker,
+      poi,
+      baseStyle
+    });
+
     applyPoiVisualState(marker, baseStyle, completionSet.has(poiId));
     let lastToggleAt = 0;
     const handleMarkerInteraction = () => {
@@ -1167,8 +1753,10 @@ function renderPOIs(mapConfig) {
       lastToggleAt = now;
       if (poi.type === 'spawn') {
         handleSpawnSelection(mapConfig.id, poiId, marker, baseStyle, poi);
+        emitCoopOperation('spawn-toggle', { mapId: mapConfig.id, poiId });
       } else {
         togglePoiCompletion(mapConfig.id, poiId, marker, baseStyle);
+        emitCoopOperation('poi-toggle', { mapId: mapConfig.id, poiId });
       }
     };
 
@@ -1237,6 +1825,10 @@ function bindUI() {
   const legendNone = document.getElementById('legendNone');
   const resetPoisBtn = document.getElementById('resetPoisBtn');
   const languageSelect = document.getElementById('languageSelect');
+  const sessionIdInput = document.getElementById('sessionIdInput');
+  const createSessionBtn = document.getElementById('createSessionBtn');
+  const joinSessionBtn = document.getElementById('joinSessionBtn');
+  const leaveSessionBtn = document.getElementById('leaveSessionBtn');
 
   toggleMenuBtn.addEventListener('click', () => {
     sideMenu.classList.toggle('open');
@@ -1269,6 +1861,36 @@ function bindUI() {
   if (resetPoisBtn) {
     resetPoisBtn.addEventListener('click', () => {
       resetCurrentMapPoiState();
+      emitCoopOperation('reset-map', { mapId: activeMapId });
+    });
+  }
+
+  if (sessionIdInput) {
+    sessionIdInput.addEventListener('input', () => {
+      const cleanValue = sanitizeSessionId(sessionIdInput.value);
+      if (sessionIdInput.value !== cleanValue) {
+        sessionIdInput.value = cleanValue;
+      }
+    });
+  }
+
+  if (createSessionBtn && sessionIdInput) {
+    createSessionBtn.addEventListener('click', () => {
+      const newId = generateSessionId();
+      sessionIdInput.value = newId;
+      joinCoopSession(newId, { preferHost: true });
+    });
+  }
+
+  if (joinSessionBtn && sessionIdInput) {
+    joinSessionBtn.addEventListener('click', () => {
+      joinCoopSession(sessionIdInput.value, { preferHost: false });
+    });
+  }
+
+  if (leaveSessionBtn) {
+    leaveSessionBtn.addEventListener('click', () => {
+      leaveCoopSession();
     });
   }
 
@@ -1375,6 +1997,7 @@ function init() {
       buildLegend();
       bindUI();
       bindDrawingTools();
+      setSessionStatus(getCurrentSessionLabel());
       applyStaticTranslations();
       renderMapData();
     })

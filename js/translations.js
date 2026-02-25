@@ -17,7 +17,15 @@ const TRANSLATIONS = {
     drawCircle150: { es: 'Rango de vision oscura', en: 'Darksight range' },
     drawErase: { es: 'Goma de borrar', en: 'Eraser' },
     drawUndo: { es: 'Atrás', en: 'Undo' },
-    drawClear: { es: 'Limpiar', en: 'Clear' }
+    drawClear: { es: 'Limpiar', en: 'Clear' },
+    sessionIdPlaceholder: { es: 'ID sesión', en: 'Session ID' },
+    createSession: { es: 'Crear', en: 'Create' },
+    joinSession: { es: 'Unirse', en: 'Join' },
+    leaveSession: { es: 'Salir', en: 'Leave' },
+    noSession: { es: 'Sin sesión', en: 'No session' },
+    sessionPrefix: { es: 'Sesión', en: 'Session' },
+    invalidSessionId: { es: 'ID inválida', en: 'Invalid ID' },
+    coopUnavailable: { es: 'Coop no disponible', en: 'Co-op unavailable' }
   },
   mapNames: {
     stillwater: { es: 'Pantano de Stillwater', en: 'Stillwater Bayou' },
