@@ -26,7 +26,7 @@ const drawingState = {
 
 const COOP_PEER_PREFIX = 'hunt1896';
 const COOP_ERASE_THRESHOLD_PX = 14;
-const COOP_DEVICE_COLORS = ['#ff3b3b', '#4da3ff', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#f1c40f', '#e67e22'];
+const COOP_DEVICE_COLORS = ['#eb3434', '#ebbd34', '#49eb34', '#34abeb', '#a134eb'];
 const coopState = {
   peer: null,
   mode: null,
@@ -100,6 +100,10 @@ function getDeviceColor(peerId) {
 }
 
 function getLocalDeviceColor() {
+  if (!coopState.roomId) {
+    return COOP_DEVICE_COLORS[0] || '#eb3434';
+  }
+
   return getDeviceColor(coopState.peerId);
 }
 
@@ -125,6 +129,8 @@ function getParticipantLabel(count) {
 }
 
 function renderSessionStatus() {
+  updateDrawModeButtons();
+
   if (!coopState.roomId) {
     setSessionStatus(getCurrentSessionLabel());
     return;
@@ -423,6 +429,12 @@ function updateDrawModeButtons() {
   const measureBtn = document.getElementById('drawMeasureLineBtn');
   const circleBtn = document.getElementById('drawCircle150Btn');
   const eraseBtn = document.getElementById('drawEraseBtn');
+  const drawControls = document.querySelector('.draw-controls');
+  const activeDrawColor = getLocalDeviceColor();
+
+  if (drawControls) {
+    drawControls.style.setProperty('--draw-active-color', activeDrawColor);
+  }
 
   if (freehandBtn) {
     freehandBtn.classList.toggle('active', drawingState.mode === DRAW_MODES.freehand);

@@ -172,8 +172,8 @@ main {
 }
 
 .draw-controls .btn.active {
-  background: #9e2121;
-  border-color: #c83737;
+  background: var(--draw-active-color, #9e2121);
+  border-color: var(--draw-active-color, #c83737);
 }
 
 .language-label {
