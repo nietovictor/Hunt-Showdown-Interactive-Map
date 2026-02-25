@@ -87,6 +87,77 @@ function setSessionStatus(text) {
   }
 }
 
+let sessionCopyNoticeTimeoutId = null;
+
+function updateSessionInputState() {
+  const sessionIdInput = document.getElementById('sessionIdInput');
+  if (!sessionIdInput) {
+    return;
+  }
+
+  const shouldLock = Boolean(coopState.roomId) && coopState.mode === 'host';
+  sessionIdInput.readOnly = shouldLock;
+  sessionIdInput.classList.toggle('locked', shouldLock);
+}
+
+function showSessionCopyNotice() {
+  const coopControls = document.querySelector('.coop-controls');
+  const sessionIdInput = document.getElementById('sessionIdInput');
+  if (!coopControls || !sessionIdInput) {
+    return;
+  }
+
+  let notice = document.getElementById('sessionCopyNotice');
+  if (!notice) {
+    notice = document.createElement('span');
+    notice.id = 'sessionCopyNotice';
+    notice.className = 'session-copy-notice';
+    coopControls.appendChild(notice);
+  }
+
+  notice.textContent = getUIText('sessionCopied');
+  const noticeLeft = sessionIdInput.offsetLeft + (sessionIdInput.offsetWidth / 2);
+  const noticeTop = sessionIdInput.offsetTop - 6;
+  notice.style.left = `${noticeLeft}px`;
+  notice.style.top = `${noticeTop}px`;
+  notice.classList.add('visible');
+
+  if (sessionCopyNoticeTimeoutId) {
+    globalThis.clearTimeout(sessionCopyNoticeTimeoutId);
+  }
+
+  sessionCopyNoticeTimeoutId = globalThis.setTimeout(() => {
+    notice.classList.remove('visible');
+  }, 1000);
+}
+
+async function copySessionIdFromInput() {
+  const sessionIdInput = document.getElementById('sessionIdInput');
+  if (!sessionIdInput?.value) {
+    return;
+  }
+
+  const clearSelection = () => {
+    try {
+      sessionIdInput.setSelectionRange(0, 0);
+    } catch {
+    }
+    sessionIdInput.blur();
+  };
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(sessionIdInput.value);
+      showSessionCopyNotice();
+      clearSelection();
+      return;
+    }
+  } catch {
+  }
+
+  clearSelection();
+}
+
 function getDeviceColor(peerId) {
   const safePeerId = typeof peerId === 'string' ? peerId : '';
   let hash = 0;
@@ -128,20 +199,62 @@ function getParticipantLabel(count) {
   return `${count} ${getUIText(key)}`;
 }
 
+function createSessionStateIcon(state) {
+  const icon = document.createElement('img');
+  icon.className = 'session-state-icon';
+  icon.src = state === 'online' ? 'assets/icons/online.svg' : 'assets/icons/offline.svg';
+  icon.alt = state;
+  return icon;
+}
+
 function renderSessionStatus() {
   updateDrawModeButtons();
+  updateSessionInputState();
+
+  const status = getSessionStatusElement();
+  if (!status) {
+    return;
+  }
 
   if (!coopState.roomId) {
-    setSessionStatus(getCurrentSessionLabel());
+    status.textContent = '';
+    status.append(createSessionStateIcon('offline'));
     return;
   }
 
   const statusParts = [getCurrentSessionLabel()];
   if (coopState.connectionState) {
-    statusParts.push(coopState.connectionState);
+    if (coopState.connectionState !== 'online' && coopState.connectionState !== 'offline') {
+      statusParts.push(coopState.connectionState);
+    }
   }
-  statusParts.push(getParticipantLabel(getCurrentParticipantCount()));
-  setSessionStatus(statusParts.join(' · '));
+
+  status.textContent = `${statusParts.join(' ')} `;
+
+  if (coopState.connectionState === 'online' || coopState.connectionState === 'offline') {
+    const stateIcon = createSessionStateIcon(coopState.connectionState);
+    stateIcon.classList.add('session-state-icon-spaced');
+    status.append(stateIcon);
+    status.append(' ');
+  }
+
+  const participantWrapper = document.createElement('span');
+  participantWrapper.className = 'session-participants';
+  const participantHint = getUIText('sessionPeopleHint');
+  participantWrapper.title = participantHint;
+
+  const participantIcon = document.createElement('img');
+  participantIcon.className = 'session-participants-icon';
+  participantIcon.src = 'assets/icons/person.svg';
+  participantIcon.alt = getUIText('participantPlural');
+  participantIcon.title = participantHint;
+
+  const participantCount = document.createElement('span');
+  participantCount.textContent = String(getCurrentParticipantCount());
+  participantCount.title = participantHint;
+
+  participantWrapper.append(participantCount, participantIcon);
+  status.append(participantWrapper);
 }
 
 function getCurrentSessionLabel() {
@@ -1989,10 +2102,30 @@ function bindUI() {
 
   if (sessionIdInput) {
     sessionIdInput.addEventListener('input', () => {
+      if (sessionIdInput.readOnly) {
+        return;
+      }
+
       const cleanValue = sanitizeSessionId(sessionIdInput.value);
       if (sessionIdInput.value !== cleanValue) {
         sessionIdInput.value = cleanValue;
       }
+    });
+
+    sessionIdInput.addEventListener('click', () => {
+      if (!sessionIdInput.readOnly || !sessionIdInput.value) {
+        return;
+      }
+
+      copySessionIdFromInput();
+    });
+
+    sessionIdInput.addEventListener('mousedown', (event) => {
+      if (!sessionIdInput.readOnly) {
+        return;
+      }
+
+      event.preventDefault();
     });
   }
 
@@ -2023,6 +2156,8 @@ function bindUI() {
       refreshLanguageUI();
     });
   }
+
+  updateSessionInputState();
 }
 
 function showLoadError(error) {

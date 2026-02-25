@@ -137,24 +137,82 @@ main {
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   background: rgba(16, 23, 34, 0.92);
+  overflow: visible;
 }
 
 .session-id-input {
-  width: 110px;
+  width: 11ch;
   border: 1px solid var(--panel-border);
   background: var(--panel);
   color: var(--text);
   border-radius: 8px;
   padding: 5px 8px;
+  text-align: center;
+}
+
+.session-id-input.locked {
+  background: #1a2232;
+  color: var(--muted);
+  border-color: #3a465f;
+  cursor: pointer;
+}
+
+.session-copy-notice {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font-size: 0.72rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1002;
+}
+
+.session-copy-notice.visible {
+  opacity: 1;
 }
 
 .session-status {
   font-size: 0.8rem;
   color: var(--muted);
   max-width: 210px;
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.session-state-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  top: 1px;
+  margin-right: 4px;
+}
+
+.session-state-icon-spaced {
+  margin-left: 8px;
+}
+
+.session-participants {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+.session-participants-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .draw-controls {
