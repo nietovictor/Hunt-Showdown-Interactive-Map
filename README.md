@@ -40,8 +40,8 @@ Track your progress during matches with this interactive map tool.
 ### Co-op on GitHub Pages (recommended)
 
 1. One player clicks **Create** (becomes host of the session ID)
-2. Share that ID with teammates
-3. Others open the same GitHub Pages URL, paste ID, click **Join**
+2. Click on the session ID to copy a link to share your session 
+3. Your friends can open that link and directly join your session, or they can write the session ID and press **Join**
 4. POIs, spawn selection, map changes and drawings sync automatically in real time
 
 ### During a Match
