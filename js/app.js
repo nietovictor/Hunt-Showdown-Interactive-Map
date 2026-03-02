@@ -76,6 +76,43 @@ function generateSessionId(length = 6) {
   return output;
 }
 
+function buildSessionShareUrl(sessionId) {
+  const cleanSessionId = sanitizeSessionId(sessionId);
+  if (!cleanSessionId || !globalThis.location?.href) {
+    return '';
+  }
+
+  const url = new URL(globalThis.location.href);
+  url.searchParams.set('session', cleanSessionId);
+  return url.toString();
+}
+
+function getSessionIdFromUrl() {
+  if (!globalThis.location?.search) {
+    return '';
+  }
+
+  const urlParams = new URLSearchParams(globalThis.location.search);
+  return sanitizeSessionId(urlParams.get('session') || '');
+}
+
+function syncSessionQueryParam(sessionId) {
+  if (!globalThis.location?.href || !globalThis.history?.replaceState) {
+    return;
+  }
+
+  const url = new URL(globalThis.location.href);
+  const cleanSessionId = sanitizeSessionId(sessionId);
+
+  if (cleanSessionId) {
+    url.searchParams.set('session', cleanSessionId);
+  } else {
+    url.searchParams.delete('session');
+  }
+
+  globalThis.history.replaceState({}, '', url.toString());
+}
+
 function getSessionStatusElement() {
   return document.getElementById('sessionStatus');
 }
@@ -91,13 +128,23 @@ let sessionCopyNoticeTimeoutId = null;
 
 function updateSessionInputState() {
   const sessionIdInput = document.getElementById('sessionIdInput');
+  const joinSessionBtn = document.getElementById('joinSessionBtn');
+  const leaveSessionBtn = document.getElementById('leaveSessionBtn');
   if (!sessionIdInput) {
     return;
   }
 
-  const shouldLock = Boolean(coopState.roomId) && coopState.mode === 'host';
+  const shouldLock = Boolean(coopState.roomId);
   sessionIdInput.readOnly = shouldLock;
   sessionIdInput.classList.toggle('locked', shouldLock);
+
+  if (joinSessionBtn) {
+    joinSessionBtn.hidden = shouldLock;
+  }
+
+  if (leaveSessionBtn) {
+    leaveSessionBtn.hidden = !shouldLock;
+  }
 }
 
 function showSessionCopyNotice() {
@@ -137,6 +184,11 @@ async function copySessionIdFromInput() {
     return;
   }
 
+  const shareUrl = buildSessionShareUrl(sessionIdInput.value);
+  if (!shareUrl) {
+    return;
+  }
+
   const clearSelection = () => {
     try {
       sessionIdInput.setSelectionRange(0, 0);
@@ -147,7 +199,7 @@ async function copySessionIdFromInput() {
 
   try {
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(sessionIdInput.value);
+      await navigator.clipboard.writeText(shareUrl);
       showSessionCopyNotice();
       clearSelection();
       return;
@@ -1483,6 +1535,7 @@ function leaveCoopSession() {
   coopState.peer = null;
   coopState.mode = null;
   coopState.roomId = null;
+  syncSessionQueryParam('');
   coopState.connectionState = '';
   coopState.participantCount = 1;
   coopState.seenOpIds.clear();
@@ -1506,6 +1559,7 @@ function joinCoopSession(roomId, options = {}) {
 
   const hostPeerId = getHostPeerId(cleanRoomId);
   coopState.roomId = cleanRoomId;
+  syncSessionQueryParam(cleanRoomId);
   coopState.connectionState = 'conectando...';
   coopState.participantCount = 1;
 
@@ -1567,6 +1621,20 @@ function joinCoopSession(roomId, options = {}) {
       renderSessionStatus();
     }
   });
+}
+
+function tryJoinSessionFromUrl() {
+  const sessionId = getSessionIdFromUrl();
+  if (!sessionId) {
+    return;
+  }
+
+  const sessionIdInput = document.getElementById('sessionIdInput');
+  if (sessionIdInput) {
+    sessionIdInput.value = sessionId;
+  }
+
+  joinCoopSession(sessionId, { preferHost: false });
 }
 
 function handleSpawnSelection(mapId, selectedPoiId, selectedMarker, baseStyle, poi) {
@@ -2253,6 +2321,7 @@ function init() {
       createMapButtons();
       buildLegend();
       bindUI();
+      tryJoinSessionFromUrl();
       bindDrawingTools();
       setSessionStatus(getCurrentSessionLabel());
       applyStaticTranslations();

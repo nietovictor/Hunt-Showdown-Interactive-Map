@@ -27,7 +27,7 @@ const TRANSLATIONS = {
     participantSingle: { es: 'participante', en: 'participant' },
     participantPlural: { es: 'participantes', en: 'participants' },
     sessionPeopleHint: { es: 'Numero de personas en tu sesion', en: 'Number of people in your session' },
-    sessionCopied: { es: 'ID de sesión copiada', en: 'Session ID copied' },
+    sessionCopied: { es: 'Enlace de sesión copiado', en: 'Session link copied' },
     invalidSessionId: { es: 'ID inválida', en: 'Invalid ID' },
     coopUnavailable: { es: 'Coop no disponible', en: 'Co-op unavailable' }
   },
